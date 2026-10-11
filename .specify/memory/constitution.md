@@ -1,18 +1,3 @@
-<!--
-Sync Impact Report
-- Version change: unratified template -> 1.0.0
-- Modified principles:
-  - Template Principle 1 -> I. Specification and Approval Gates
-  - Template Principle 2 -> II. Provider Fidelity and Explicit Uncertainty
-  - Template Principle 3 -> III. Data Ownership and Safe Synchronization
-  - Template Principle 4 -> IV. Verification at External Boundaries
-  - Template Principle 5 -> V. Simplicity, Security, and Operability
-- Added sections:
-  - Project Constraints
-  - Development Workflow and Quality Gates
-- Removed sections: none
-- Follow-up TODOs: none
--->
 # Job Discovery Backend Constitution
 
 ## Core Principles
@@ -97,6 +82,10 @@ synchronization outcome without exposing credentials or sensitive content.
    end-to-end HiringCafe-to-Notion path prioritized.
 7. Implementation changes MUST satisfy BACKEND_STANDARDS.md, approved architecture decisions,
    relevant tests, documented configuration, and reproducible build checks.
+8. Every task MUST use a dedicated `feature/<short-name>` or `fix/<short-name>` branch created from
+   the latest `develop`. Completed task branches MUST be pushed and reviewed through a pull request
+   whose base branch is `develop`; direct task commits to `develop` or `main` are prohibited.
+9. Stable releases MUST move from `develop` to `main` through a separate reviewed pull request.
 
 ## Governance
 
@@ -111,4 +100,4 @@ PATCH for non-semantic clarification. Reviews of specifications, plans, tasks, a
 changes MUST check compliance. Unjustified complexity or an unapproved implementation gate breach
 MUST block progression until resolved.
 
-**Version**: 1.0.0 | **Ratified**: 2026-10-11 | **Last Amended**: 2026-10-11
+**Version**: 1.1.0 | **Ratified**: 2026-10-11 | **Last Amended**: 2026-10-11

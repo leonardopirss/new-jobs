@@ -1,38 +1,38 @@
-# Contribuindo
+# Contributing
 
-Este projeto usa um fluxo baseado em Git Flow, com revisao obrigatoria por Pull Request.
+This project uses a Git Flow-based workflow with mandatory pull-request review.
 
-## Branches permanentes
+## Permanent branches
 
-- `main`: versoes estaveis e prontas para producao.
-- `develop`: integracao das tarefas concluidas.
+- `main`: stable, production-ready releases.
+- `develop`: integration branch for completed tasks.
 
-## Fluxo de uma tarefa
+## Task workflow
 
-1. Atualize a branch `develop`:
+1. Update `develop`:
 
    ```bash
    git switch develop
    git pull --ff-only origin develop
    ```
 
-2. Crie uma branch a partir de `develop`:
+2. Create a branch from `develop`:
 
    ```bash
    git switch -c feature/<numero-ou-descricao-curta>
    ```
 
-   Para correcoes, use `fix/<numero-ou-descricao-curta>`.
+   Use `fix/<number-or-short-description>` for corrections.
 
-3. Implemente e valide a tarefa. Use commits pequenos, com mensagens objetivas.
-4. Publique a branch:
+3. Complete and validate the task. Use small commits with clear messages.
+4. Push the branch:
 
    ```bash
    git push -u origin feature/<numero-ou-descricao-curta>
    ```
 
-5. Abra um Pull Request com `develop` como branch de destino e aguarde a revisao.
-6. Depois do merge, remova a branch da tarefa no remoto e localmente.
+5. Open a pull request with `develop` as its base branch and wait for review.
+6. After the merge, delete the task branch remotely and locally.
 
-Nao envie commits de tarefas diretamente para `main` ou `develop`. Releases saem de
-`develop` para `main` em um Pull Request separado.
+Do not push task commits directly to `main` or `develop`. Releases move from `develop` to `main`
+through a separate reviewed pull request.
