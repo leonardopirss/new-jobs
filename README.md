@@ -1,13 +1,13 @@
 # Job Discovery & Notion Sync
 
-Foundation for a Java/Spring Boot service that discovers, ranks, and safely synchronizes jobs to Notion. Only Phase 0 infrastructure is implemented. HiringCafe, ranking, Notion writes, imports, scheduling, and LinkedIn collection are not implemented.
+Java/Spring Boot service for discovering, ranking, and safely synchronizing jobs to Notion. The foundation and Phase 1 filter contracts are implemented. The HiringCafe connector, ranking, Notion writes, imports, scheduling, and LinkedIn collection are not implemented.
 
 ## Requirements
 
-- Java 21
+- Java 25
 - Docker with Compose
 
-Spring Boot 4.1.1 is the selected stable framework version and supports Java 21. Maven is provided through `mvnw`.
+Spring Boot 4.1.1 is the selected stable framework version and supports Java 25. Maven is provided through `mvnw`.
 
 ## Local database
 
@@ -36,3 +36,5 @@ curl --fail http://localhost:8080/actuator/health
 The integration test uses Testcontainers and automatically starts an isolated PostgreSQL instance. Docker must be available; the build fails rather than silently skipping the Phase 0 database gate.
 
 Configuration fails at startup when `DB_PASSWORD` is absent. Do not commit `.env` or real credentials. See `docs/BACKEND_PROFILE.md` for architectural and operational decisions.
+
+The provisional saved-filter and preview contracts are documented in `docs/api/filter-api.md`. Manual API authentication remains an open production gate, so these endpoints must stay inside a trusted development environment.
