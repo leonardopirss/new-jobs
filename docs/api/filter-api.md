@@ -1,6 +1,6 @@
-# Filter API v1 — Phase 1 provisional contract
+# Filter and preview API v1 — provisional contract
 
-The route names below follow the development-plan recommendations and remain provisional until explicitly approved. Phase 1 does not call HiringCafe or Notion.
+The route names below follow the development-plan recommendations and remain provisional until explicitly approved. The preview route calls HiringCafe's verified read-only MCP search tool. It does not call Notion.
 
 ## Saved filters
 
@@ -12,13 +12,17 @@ The route names below follow the development-plan recommendations and remain pro
 
 Names are unique ignoring case. Only `HIRING_CAFE` is accepted for discovery; `LINKEDIN` is reserved in the common source enum but cannot be saved or previewed. A specification contains `commonFilters` and `providerSpecificFilters`. Common filter groups have `field`, `operation` (`INCLUDE` or `EXCLUDE`), `matchMode` (`ALL` or `ANY`), and string `values`. Exclusions are limited to `KEYWORD` and `COMPANY` and always use `ANY` semantics.
 
-No HiringCafe-specific option has yet been verified, so every non-empty `providerSpecificFilters` entry is rejected with `422 UNSUPPORTED_FILTER`. Phase 2 may enable only options confirmed by the official provider contract.
+Verified HiringCafe-specific names are `search`, `location`, `workplace_types`, `employment_types`, `seniority_levels`, `role_type`, `min_salary`, `salary_frequency`, `posted_salary_only`, `max_years_experience`, `company_names`, `exclude_company_names`, `departments`, `language_requirements`, and `benefits_and_perks`. Other names return `422 UNSUPPORTED_FILTER` before any provider request. Except for `language_requirements`, whose AND/OR operator is explicitly documented, multi-value provider matching is rejected when the vendor has not documented its semantics.
+
+Common filters are translated only where the official tool exposes a corresponding field. Unmapped fields, values outside the provider's documented enums, and ambiguous multi-value semantics return `422` during both saved-filter writes and previews; they are never silently stored or ignored. `PUBLICATION_TIME` is owned by the Phase 2 fixed 24-hour discovery window rather than accepting a caller-defined value.
 
 ## Preview
 
-`POST /api/v1/jobs/preview` accepts `source` and `specification`. It validates the same DSL and never persists it. Until the Phase 2 connector exists, a valid request returns `501 PROVIDER_CONNECTOR_NOT_IMPLEMENTED`; it never returns a misleading empty success.
+`POST /api/v1/jobs/preview` accepts `source` and `specification`. It validates the same DSL, invokes one bounded HiringCafe search, normalizes the documented structured response, applies an exact inclusive cutoff of `now - 24h`, and never persists jobs or filter changes.
 
-Errors use Problem Details with a stable `code`. Request-shape failures return `400`; unsupported sources or filter semantics return `422`; duplicate names return `409`.
+The response contains `jobs`, `summary`, and `warnings`. `summary.complete` is currently always `false`: the verified MCP contract returns at most 25 jobs, one per company, and exposes no pagination input. Jobs with missing/invalid publication timestamps or malformed URLs are excluded and counted. Warnings distinguish the pagination limitation, per-company limitation, provider truncation, and invalid provider records. A provider transport failure returns `502 HIRINGCAFE_UNAVAILABLE` without leaking the upstream response.
+
+Errors use Problem Details with a stable `code`. Request-shape failures return `400`; unsupported sources or filter semantics return `422`; duplicate names return `409`; provider unavailability returns `502`.
 
 ## Security gate
 

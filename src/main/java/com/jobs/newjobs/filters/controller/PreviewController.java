@@ -1,6 +1,5 @@
 package com.jobs.newjobs.filters.controller;
 
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -20,8 +19,7 @@ public class PreviewController {
 	}
 
 	@PostMapping
-	ResponseEntity<Void> preview(@Valid @RequestBody PreviewRequest request) {
-		service.validatePreview(request.source(), request.specification().toDomain());
-		return ResponseEntity.noContent().build();
+	PreviewResponse preview(@Valid @RequestBody PreviewRequest request) {
+		return PreviewResponse.from(service.preview(request.source(), request.specification().toDomain()));
 	}
 }

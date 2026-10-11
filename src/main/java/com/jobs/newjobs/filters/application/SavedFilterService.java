@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.jobs.newjobs.filters.domain.FilterSpecification;
 import com.jobs.newjobs.filters.domain.SavedFilter;
+import com.jobs.newjobs.hiringcafe.application.HiringCafeQueryFactory;
 import com.jobs.newjobs.jobs.domain.JobSource;
 
 @Service
@@ -17,21 +18,25 @@ public class SavedFilterService {
 	private final SavedFilterRepository repository;
 	private final FilterCapabilityPolicy capabilityPolicy;
 	private final Clock clock;
+	private final HiringCafeQueryFactory hiringCafeQueryFactory;
 
 	public SavedFilterService(
 		SavedFilterRepository repository,
 		FilterCapabilityPolicy capabilityPolicy,
-		Clock clock
+		Clock clock,
+		HiringCafeQueryFactory hiringCafeQueryFactory
 	) {
 		this.repository = repository;
 		this.capabilityPolicy = capabilityPolicy;
 		this.clock = clock;
+		this.hiringCafeQueryFactory = hiringCafeQueryFactory;
 	}
 
 	@Transactional
 	public SavedFilter create(String name, JobSource source, FilterSpecification specification) {
 		String normalizedName = validateName(name);
 		capabilityPolicy.validate(source, specification);
+		hiringCafeQueryFactory.create(specification);
 		Instant now = clock.instant();
 		return repository.insert(new SavedFilter(
 			UUID.randomUUID(), normalizedName, source, specification, 0, now, now
@@ -53,6 +58,7 @@ public class SavedFilterService {
 		SavedFilter current = get(id);
 		String normalizedName = validateName(name);
 		capabilityPolicy.validate(source, specification);
+		hiringCafeQueryFactory.create(specification);
 		SavedFilter updated = new SavedFilter(
 			current.id(), normalizedName, source, specification, current.version() + 1,
 			current.createdAt(), clock.instant()

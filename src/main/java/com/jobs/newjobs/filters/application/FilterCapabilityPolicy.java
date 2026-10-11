@@ -10,7 +10,23 @@ import com.jobs.newjobs.jobs.domain.JobSource;
 
 @Component
 public class FilterCapabilityPolicy {
-	private static final Set<String> VERIFIED_HIRING_CAFE_FILTERS = Set.of();
+	private static final Set<String> VERIFIED_HIRING_CAFE_FILTERS = Set.of(
+		"search",
+		"location",
+		"workplace_types",
+		"employment_types",
+		"seniority_levels",
+		"role_type",
+		"min_salary",
+		"salary_frequency",
+		"posted_salary_only",
+		"max_years_experience",
+		"company_names",
+		"exclude_company_names",
+		"departments",
+		"language_requirements",
+		"benefits_and_perks"
+	);
 
 	public void validate(JobSource source, FilterSpecification specification) {
 		if (source != JobSource.HIRING_CAFE) {
