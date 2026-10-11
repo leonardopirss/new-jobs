@@ -1,18 +1,18 @@
-## Objetivo
+## Goal
 
-<!-- Explique o problema resolvido e o resultado esperado. -->
+<!-- Explain the problem addressed and the expected outcome. -->
 
-## Alteracoes
+## Changes
 
-<!-- Liste as principais alteracoes realizadas. -->
+<!-- List the main changes. -->
 
-## Como validar
+## Validation
 
-<!-- Informe os comandos e passos usados para validar a tarefa. -->
+<!-- List the commands and steps used to validate the task. -->
 
 ## Checklist
 
-- [ ] O Pull Request tem `develop` como branch de destino.
-- [ ] Os testes automatizados passam localmente.
-- [ ] A documentacao foi atualizada, quando necessario.
-- [ ] Nao foram adicionados segredos ou dados sensiveis.
+- [ ] The pull request targets `develop`.
+- [ ] Automated tests pass locally.
+- [ ] Documentation is updated where required.
+- [ ] No secrets or sensitive data were added.
