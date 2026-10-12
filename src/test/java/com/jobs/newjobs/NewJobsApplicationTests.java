@@ -23,6 +23,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 @Testcontainers
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
 class NewJobsApplicationTests {
+	private static final String MANUAL_API_KEY = "manual-application-test-key-000000000001";
 
 	@Container
 	static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:17.6-alpine")
@@ -35,6 +36,7 @@ class NewJobsApplicationTests {
 		registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
 		registry.add("spring.datasource.username", POSTGRES::getUsername);
 		registry.add("spring.datasource.password", POSTGRES::getPassword);
+		registry.add("app.security.manual.current-key", () -> MANUAL_API_KEY);
 	}
 
 	@Autowired

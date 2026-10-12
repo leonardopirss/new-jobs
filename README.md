@@ -23,6 +23,7 @@ Export the matching application variables (Compose reads `.env`, but the Java pr
 export DB_URL=jdbc:postgresql://localhost:5432/job_discovery
 export DB_USERNAME=job_discovery
 export DB_PASSWORD='<the local password from .env>'
+export MANUAL_API_KEY='<a separate random key with at least 32 characters>'
 ```
 
 ## Run and verify
@@ -30,11 +31,17 @@ export DB_PASSWORD='<the local password from .env>'
 ```shell
 ./mvnw spring-boot:run
 curl --fail http://localhost:8080/actuator/health
+curl --fail -H "Authorization: Bearer ${MANUAL_API_KEY}" http://localhost:8080/api/v1/filters
 ./mvnw verify
 ```
 
 The integration test uses Testcontainers and automatically starts an isolated PostgreSQL instance. Docker must be available; the build fails rather than silently skipping the Phase 0 database gate.
 
-Configuration fails at startup when `DB_PASSWORD` is absent. Do not commit `.env` or real credentials. See `docs/BACKEND_PROFILE.md` for architectural and operational decisions.
+Configuration fails at startup when `DB_PASSWORD` or the manual API key is absent/short. The optional
+`MANUAL_API_PREVIOUS_KEY` and `MANUAL_API_PREVIOUS_VALID_UNTIL` must be configured together and are
+accepted only during the bounded rotation overlap. Do not reuse this operator key for import clients,
+commit `.env`, or log real credentials. All `/api/v1/filters/**` and `/api/v1/jobs/preview` calls require
+`Authorization: Bearer <manual-key>`; health remains anonymously available without component details.
+See `docs/BACKEND_PROFILE.md` for architectural and operational decisions.
 
-The provisional saved-filter and preview contracts are documented in `docs/api/filter-api.md`; the verified provider contract and its pagination/automation limitations are in `docs/integrations/hiringcafe.md`. Ranking behavior is documented in `docs/ranking.md`, with provisional scoring decisions recorded in `docs/architecture/decisions.md`. Manual API authentication and product approval of the ranking defaults remain production gates, so these endpoints must stay inside a trusted development environment.
+The provisional saved-filter and preview contracts are documented in `docs/api/filter-api.md`; the verified provider contract and its pagination/automation limitations are in `docs/integrations/hiringcafe.md`. Ranking behavior is documented in `docs/ranking.md`, with provisional scoring decisions recorded in `docs/architecture/decisions.md`. Product approval of the gated ranking defaults remains required before ranking integration is exposed.
