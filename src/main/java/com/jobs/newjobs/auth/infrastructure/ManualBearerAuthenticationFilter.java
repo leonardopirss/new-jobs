@@ -45,20 +45,20 @@ public final class ManualBearerAuthenticationFilter extends OncePerRequestFilter
 			return;
 		}
 		if (authorizationHeaders.size() != 1) {
-			ApiSecurityConfiguration.writeUnauthorized(response, "INVALID_CREDENTIAL");
+			ApiSecurityConfiguration.writeUnauthorized(request, response, "INVALID_CREDENTIAL");
 			return;
 		}
 
 		String authorization = authorizationHeaders.getFirst();
 		if (authorization.length() <= BEARER_PREFIX.length()
 			|| !authorization.regionMatches(true, 0, BEARER_PREFIX, 0, BEARER_PREFIX.length())) {
-			ApiSecurityConfiguration.writeUnauthorized(response, "INVALID_CREDENTIAL");
+			ApiSecurityConfiguration.writeUnauthorized(request, response, "INVALID_CREDENTIAL");
 			return;
 		}
 
 		String credential = authorization.substring(BEARER_PREFIX.length());
 		if (!verifier.isValid(credential)) {
-			ApiSecurityConfiguration.writeUnauthorized(response, "INVALID_CREDENTIAL");
+			ApiSecurityConfiguration.writeUnauthorized(request, response, "INVALID_CREDENTIAL");
 			return;
 		}
 

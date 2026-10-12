@@ -19,6 +19,7 @@ paths:
                 type: array
                 items: { $ref: "#/components/schemas/SavedFilter" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
     post:
       operationId: createSavedFilter
       security: [{ manualBearer: [] }]
@@ -36,6 +37,9 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/SavedFilter" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+        "400": { $ref: "#/components/responses/ProblemResponse" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/ProblemResponse" }
         "422": { $ref: "#/components/responses/Unprocessable" }
   /api/v1/filters/{id}:
     parameters:
@@ -50,6 +54,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/SavedFilter" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
     put:
       operationId: replaceSavedFilter
@@ -66,6 +71,9 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/SavedFilter" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+        "400": { $ref: "#/components/responses/ProblemResponse" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/ProblemResponse" }
         "404": { $ref: "#/components/responses/NotFound" }
         "422": { $ref: "#/components/responses/Unprocessable" }
     delete:
@@ -74,6 +82,7 @@ paths:
       responses:
         "204": { description: Configuration deleted. }
         "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
   /api/v1/jobs/preview:
     post:
@@ -92,6 +101,8 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/PreviewResponse" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+        "400": { $ref: "#/components/responses/ProblemResponse" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "422": { $ref: "#/components/responses/Unprocessable" }
         "502": { $ref: "#/components/responses/ProblemResponse" }
   /api/v1/jobs/sync:
@@ -110,6 +121,8 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/SyncResponse" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+        "400": { $ref: "#/components/responses/ProblemResponse" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "422": { $ref: "#/components/responses/Unprocessable" }
         "503":
           description: Lock or preflight unavailable before processing began.

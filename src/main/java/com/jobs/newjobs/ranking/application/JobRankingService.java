@@ -16,6 +16,7 @@ import java.util.Set;
 import org.springframework.stereotype.Service;
 
 import com.jobs.newjobs.jobs.domain.NormalizedJob;
+import com.jobs.newjobs.jobs.application.JobIdentityCanonicalizer;
 import com.jobs.newjobs.ranking.domain.EligibilityAssessment;
 import com.jobs.newjobs.ranking.domain.EligibilityStatus;
 import com.jobs.newjobs.ranking.domain.RankedJob;
@@ -38,15 +39,18 @@ public class JobRankingService {
 	private final GeographicEligibilityClassifier eligibilityClassifier;
 	private final TechnologyEvidenceExtractor evidenceExtractor;
 	private final Clock clock;
+	private final JobIdentityCanonicalizer identityCanonicalizer;
 
 	public JobRankingService(
 		GeographicEligibilityClassifier eligibilityClassifier,
 		TechnologyEvidenceExtractor evidenceExtractor,
-		Clock clock
+		Clock clock,
+		JobIdentityCanonicalizer identityCanonicalizer
 	) {
 		this.eligibilityClassifier = eligibilityClassifier;
 		this.evidenceExtractor = evidenceExtractor;
 		this.clock = clock;
+		this.identityCanonicalizer = identityCanonicalizer;
 	}
 
 	public List<RankedJob> rank(List<RankingCandidate> candidates, RankingPreferences preferences) {
@@ -225,13 +229,13 @@ public class JobRankingService {
 		}
 	}
 
-	private static Comparator<RankedJob> order() {
+	private Comparator<RankedJob> order() {
 		return Comparator.comparingInt((RankedJob ranked) -> eligibilityRank(ranked.eligibility().status()))
 			.thenComparing(ranked -> ranked.score().total(), Comparator.reverseOrder())
 			.thenComparing(ranked -> ranked.score().technologyPoints(), Comparator.reverseOrder())
 			.thenComparing(ranked -> ranked.score().seniorityPoints(), Comparator.reverseOrder())
 			.thenComparing(ranked -> ranked.job().publishedAt(), Comparator.nullsLast(Comparator.reverseOrder()))
-			.thenComparing(ranked -> canonicalIdentity(ranked.job()));
+			.thenComparing(ranked -> identityCanonicalizer.stableKey(ranked.job()));
 	}
 
 	private static int eligibilityRank(EligibilityStatus status) {
@@ -242,11 +246,4 @@ public class JobRankingService {
 		};
 	}
 
-	private static String canonicalIdentity(NormalizedJob job) {
-		String identifier = job.externalJobId();
-		if (identifier == null || identifier.isBlank()) {
-			identifier = job.jobUrl() == null ? "" : job.jobUrl().normalize().toString();
-		}
-		return job.source().name() + ":" + identifier;
-	}
 }

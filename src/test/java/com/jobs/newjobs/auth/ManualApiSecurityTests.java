@@ -78,8 +78,10 @@ class ManualApiSecurityTests {
  void protectsManualRoutesAndDoesNotCreateASession() throws Exception {
   HttpResponse<String> missing = send("GET", "/api/v1/filters", null, null);
   assertThat(missing.statusCode()).isEqualTo(401);
-  assertThat(missing.headers().firstValue("WWW-Authenticate")).contains("Bearer");
-  assertThat(missing.body()).contains("AUTHENTICATION_REQUIRED");
+		assertThat(missing.headers().firstValue("WWW-Authenticate")).contains("Bearer");
+		assertThat(missing.body()).contains("AUTHENTICATION_REQUIRED");
+		assertThat(missing.headers().firstValue("X-Request-Id")).isPresent();
+		assertThat(missing.body()).contains("requestId");
   assertThat(missing.headers().firstValue("Set-Cookie")).isEmpty();
 
   HttpResponse<String> invalid = send("GET", "/api/v1/filters", null, "wrong-key");
