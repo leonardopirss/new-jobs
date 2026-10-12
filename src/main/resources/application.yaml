@@ -26,6 +26,9 @@ app:
       current-key: ${MANUAL_API_KEY}
       previous-key: ${MANUAL_API_PREVIOUS_KEY:}
       previous-valid-until: ${MANUAL_API_PREVIOUS_VALID_UNTIL:}
+    integrations:
+      credentials: []
+      credentials-json: ${IMPORT_CREDENTIALS_JSON:[]}
   features:
     notion-writes-enabled: ${NOTION_WRITES_ENABLED:false}
     imports-enabled: ${IMPORTS_ENABLED:false}
