@@ -20,6 +20,10 @@ public class PreviewController {
 
 	@PostMapping
 	PreviewResponse preview(@Valid @RequestBody PreviewRequest request) {
-		return PreviewResponse.from(service.preview(request.source(), request.specification().toDomain()));
+		return PreviewResponse.from(service.preview(
+			request.source(),
+			request.specification().toDomain(),
+			RankingPreferencesRequest.effective(request.rankingPreferences())
+		));
 	}
 }

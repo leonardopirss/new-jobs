@@ -12,6 +12,7 @@ import com.jobs.newjobs.filters.domain.FilterSpecification;
 import com.jobs.newjobs.filters.domain.SavedFilter;
 import com.jobs.newjobs.hiringcafe.application.HiringCafeQueryFactory;
 import com.jobs.newjobs.jobs.domain.JobSource;
+import com.jobs.newjobs.ranking.domain.RankingPreferences;
 
 @Service
 public class SavedFilterService {
@@ -33,13 +34,18 @@ public class SavedFilterService {
 	}
 
 	@Transactional
-	public SavedFilter create(String name, JobSource source, FilterSpecification specification) {
+	public SavedFilter create(
+		String name,
+		JobSource source,
+		FilterSpecification specification,
+		RankingPreferences rankingPreferences
+	) {
 		String normalizedName = validateName(name);
 		capabilityPolicy.validate(source, specification);
 		hiringCafeQueryFactory.create(specification);
 		Instant now = clock.instant();
 		return repository.insert(new SavedFilter(
-			UUID.randomUUID(), normalizedName, source, specification, 0, now, now
+			UUID.randomUUID(), normalizedName, source, specification, rankingPreferences, 0, now, now
 		));
 	}
 
@@ -54,13 +60,19 @@ public class SavedFilterService {
 	}
 
 	@Transactional
-	public SavedFilter update(UUID id, String name, JobSource source, FilterSpecification specification) {
+	public SavedFilter update(
+		UUID id,
+		String name,
+		JobSource source,
+		FilterSpecification specification,
+		RankingPreferences rankingPreferences
+	) {
 		SavedFilter current = get(id);
 		String normalizedName = validateName(name);
 		capabilityPolicy.validate(source, specification);
 		hiringCafeQueryFactory.create(specification);
 		SavedFilter updated = new SavedFilter(
-			current.id(), normalizedName, source, specification, current.version() + 1,
+			current.id(), normalizedName, source, specification, rankingPreferences, current.version() + 1,
 			current.createdAt(), clock.instant()
 		);
 		if (!repository.update(updated)) {

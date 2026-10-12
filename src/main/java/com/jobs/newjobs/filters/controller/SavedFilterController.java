@@ -30,7 +30,8 @@ public class SavedFilterController {
 	@PostMapping
 	ResponseEntity<SavedFilterResponse> create(@Valid @RequestBody SaveFilterRequest request) {
 		SavedFilterResponse response = SavedFilterResponse.from(service.create(
-			request.name(), request.source(), request.specification().toDomain()
+			request.name(), request.source(), request.specification().toDomain(),
+			RankingPreferencesRequest.effective(request.rankingPreferences())
 		));
 		return ResponseEntity.created(URI.create("/api/v1/filters/" + response.id())).body(response);
 	}
@@ -48,7 +49,8 @@ public class SavedFilterController {
 	@PutMapping("/{id}")
 	SavedFilterResponse update(@PathVariable UUID id, @Valid @RequestBody SaveFilterRequest request) {
 		return SavedFilterResponse.from(service.update(
-			id, request.name(), request.source(), request.specification().toDomain()
+			id, request.name(), request.source(), request.specification().toDomain(),
+			RankingPreferencesRequest.effective(request.rankingPreferences())
 		));
 	}
 

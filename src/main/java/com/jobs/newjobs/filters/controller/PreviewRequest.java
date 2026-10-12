@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotNull;
 
 public record PreviewRequest(
 	@NotNull JobSource source,
-	@NotNull @Valid FilterSpecificationRequest specification
+	@NotNull @Valid FilterSpecificationRequest specification,
+	@Valid RankingPreferencesRequest rankingPreferences
 ) {
 }

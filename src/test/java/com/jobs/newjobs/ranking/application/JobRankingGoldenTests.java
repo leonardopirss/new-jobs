@@ -113,6 +113,28 @@ class JobRankingGoldenTests {
 			.containsExactly("senior-old", "junior-new");
 	}
 
+	@Test
+	void approvedDefaultsUseExactSeniorityAndLinearTwentyFourHourRecency() {
+		RankingPreferences preferences = new RankingPreferences(
+			SearchMode.REMOTE_FROM_BRAZIL, List.of(), List.of(), List.of("Senior")
+		);
+		RankingCandidate exactAtHalfWindow = candidate(
+			"exact-half-window", NOW.minusSeconds(12 * 3600), "Senior", List.of(), eligibleGeo()
+		);
+		RankingCandidate mismatchNow = candidate(
+			"mismatch-now", NOW, "Junior", List.of(), eligibleGeo()
+		);
+
+		var ranked = service.rank(List.of(mismatchNow, exactAtHalfWindow), preferences);
+
+		assertThat(ranked).extracting(result -> result.job().externalJobId())
+			.containsExactly("exact-half-window", "mismatch-now");
+		assertThat(ranked.get(0).score().seniorityPoints()).isEqualByComparingTo("50");
+		assertThat(ranked.get(0).score().recencyPoints()).isEqualByComparingTo("25");
+		assertThat(ranked.get(1).score().seniorityPoints()).isEqualByComparingTo("0");
+		assertThat(ranked.get(1).score().recencyPoints()).isEqualByComparingTo("50");
+	}
+
 	private static RankingCandidate candidate(
 		String id, Instant publishedAt, String seniority, List<String> technologies, GeographicEvidence geo
 	) {

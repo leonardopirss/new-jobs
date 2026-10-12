@@ -302,7 +302,7 @@ components:
       allOf:
         - $ref: "#/components/schemas/FilterConfigurationFields"
         - type: object
-          required: [id, version, createdAt, updatedAt]
+          required: [id, rankingPreferences, version, createdAt, updatedAt]
           properties:
             id: { type: string, format: uuid }
             version: { type: integer, format: int64, minimum: 0 }
@@ -327,11 +327,12 @@ components:
         - $ref: "#/components/schemas/TransientDiscoveryRequest"
     PreviewResponse:
       type: object
-      required: [jobs, summary, warnings]
+      required: [jobs, rankingPreferences, summary, warnings]
       properties:
         jobs:
           type: array
           items: { $ref: "#/components/schemas/RankedJob" }
+        rankingPreferences: { $ref: "#/components/schemas/RankingPreferences" }
         summary:
           type: object
           required: [discovered, returned, excludedIneligible, providerReturned, excludedOutsidePublicationWindow, complete]
