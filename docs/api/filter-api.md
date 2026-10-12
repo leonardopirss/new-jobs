@@ -1,6 +1,6 @@
-# Filter and preview API v1 — provisional contract
+# Filter and preview API v1
 
-The route names below follow the development-plan recommendations and remain provisional until explicitly approved. The preview route calls HiringCafe's verified read-only MCP search tool. It does not call Notion.
+The machine-readable target contract is maintained in `specs/001-job-discovery-sync/contracts/openapi.yaml`. The preview route calls HiringCafe's verified read-only MCP search tool. It does not call Notion.
 
 ## Saved filters
 
@@ -22,8 +22,10 @@ Common filters are translated only where the official tool exposes a correspondi
 
 The response contains `jobs`, `summary`, and `warnings`. `summary.complete` is currently always `false`: the verified MCP contract returns at most 25 jobs, one per company, and exposes no pagination input. Jobs with missing/invalid publication timestamps or malformed URLs are excluded and counted. Warnings distinguish the pagination limitation, per-company limitation, provider truncation, and invalid provider records. A provider transport failure returns `502 HIRINGCAFE_UNAVAILABLE` without leaking the upstream response.
 
-Errors use Problem Details with a stable `code`. Request-shape failures return `400`; unsupported sources or filter semantics return `422`; duplicate names return `409`; provider unavailability returns `502`.
+Errors use Problem Details with a stable `code` and server-generated `requestId`, also returned in `X-Request-Id`. Malformed JSON and request-shape failures return `400`; unsupported sources or filter semantics return `422`; duplicate names return `409`; provider unavailability returns `502`. Error bodies and request IDs never include credentials, raw provider bodies, private notes, or job-description content.
 
-## Security gate
+## Manual authentication
 
-Manual-endpoint authentication is not implemented because open gate #9 has not decided whether manual operations use an admin secret or a distinct credential. These endpoints must not be exposed outside a trusted development environment until that decision is approved and implemented.
+All saved-filter and preview operations require `Authorization: Bearer <manual-key>`. Authentication is stateless; no session, form login, HTTP Basic, or generated framework password is enabled. The key is provided outside source control, compared through fixed-length SHA-256 digests, and may have one distinct previous value during an explicitly bounded rotation overlap. Manual credentials are separate from future import credentials. Only sanitized health is anonymous; every unmatched route is denied by default.
+
+Notion writes, imports, and scheduling remain disabled by default through independently validated feature flags. Enabling a dependent capability without complete Notion configuration fails startup rather than accepting traffic with partial configuration.

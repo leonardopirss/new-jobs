@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 
 import com.jobs.newjobs.jobs.domain.JobSource;
 import com.jobs.newjobs.jobs.domain.NormalizedJob;
+import com.jobs.newjobs.jobs.application.JobIdentityCanonicalizer;
 import com.jobs.newjobs.ranking.domain.EligibilityStatus;
 import com.jobs.newjobs.ranking.domain.GeographicEvidence;
 import com.jobs.newjobs.ranking.domain.RankingCandidate;
@@ -30,7 +31,8 @@ class JobRankingGoldenTests {
 	private final JobRankingService service = new JobRankingService(
 		new GeographicEligibilityClassifier(),
 		new TechnologyEvidenceExtractor(),
-		Clock.fixed(NOW, ZoneOffset.UTC)
+		Clock.fixed(NOW, ZoneOffset.UTC),
+		new JobIdentityCanonicalizer()
 	);
 
 	@Test

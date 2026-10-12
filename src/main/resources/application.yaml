@@ -26,6 +26,21 @@ app:
       current-key: ${MANUAL_API_KEY}
       previous-key: ${MANUAL_API_PREVIOUS_KEY:}
       previous-valid-until: ${MANUAL_API_PREVIOUS_VALID_UNTIL:}
+  features:
+    notion-writes-enabled: ${NOTION_WRITES_ENABLED:false}
+    imports-enabled: ${IMPORTS_ENABLED:false}
+  notion:
+    base-url: ${NOTION_BASE_URL:https://api.notion.com}
+    api-version: 2026-03-11
+    token: ${NOTION_TOKEN:}
+    database-id: ${NOTION_DATABASE_ID:}
+    data-source-id: ${NOTION_DATA_SOURCE_ID:}
+    connect-timeout: ${NOTION_CONNECT_TIMEOUT:3s}
+    request-timeout: ${NOTION_REQUEST_TIMEOUT:10s}
+  scheduler:
+    enabled: ${JOB_SCHEDULER_ENABLED:false}
+    interval: ${JOB_SCHEDULER_INTERVAL:PT6H}
+    timezone: ${JOB_SCHEDULER_TIMEZONE:UTC}
 
 hiringcafe:
   mcp-url: ${HIRINGCAFE_MCP_URL:https://hiringcafe.com/api/chatgpt/mcp}
