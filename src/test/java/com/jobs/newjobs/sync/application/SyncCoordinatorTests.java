@@ -48,6 +48,8 @@ import com.jobs.newjobs.ranking.domain.EligibilityStatus;
 import com.jobs.newjobs.ranking.domain.RankedJob;
 import com.jobs.newjobs.ranking.domain.RankingScore;
 import com.jobs.newjobs.ranking.domain.SearchMode;
+import com.jobs.newjobs.observability.OperationalTelemetry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import com.jobs.newjobs.sync.domain.SyncItemStatus;
 import com.jobs.newjobs.sync.infrastructure.JdbcSyncSafetyMarkerRepository;
 import com.jobs.newjobs.sync.infrastructure.PostgresDestinationLock;
@@ -188,7 +190,8 @@ class SyncCoordinatorTests {
 			new PostgresDestinationLock(dataSource), gateway, new NotionSchemaValidator(), canonicalizer, mapper,
 			new NotionUpdateService(gateway, mapper, clock),
 			markers, new SyncMarkerProtocol(markers, gateway, clock),
-			new NotionCreationQuotaService(gateway, markers, clock), clock);
+			new NotionCreationQuotaService(gateway, markers, clock,
+				new OperationalTelemetry(new SimpleMeterRegistry())), clock);
 	}
 
 	private static int firstWrite(List<String> events) {

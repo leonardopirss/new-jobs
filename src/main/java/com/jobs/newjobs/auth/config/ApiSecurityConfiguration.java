@@ -47,6 +47,7 @@ public class ApiSecurityConfiguration {
 				.accessDeniedHandler((request, response, exception) -> writeForbidden(request, response)))
 			.authorizeHttpRequests(authorize -> authorize
 				.requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+				.requestMatchers("/actuator/metrics", "/actuator/metrics/**").hasAuthority("MANUAL_API")
 				.requestMatchers("/api/v1/jobs/import").hasAuthority("jobs:import")
 				.requestMatchers("/api/v1/filters/**", "/api/v1/jobs/preview", "/api/v1/jobs/sync")
 				.hasAuthority("MANUAL_API")

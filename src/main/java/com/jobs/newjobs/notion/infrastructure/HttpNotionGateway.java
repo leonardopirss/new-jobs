@@ -42,6 +42,10 @@ import com.jobs.newjobs.notion.domain.NotionPropertyType;
 import com.jobs.newjobs.notion.domain.NotionPropertyValue;
 import com.jobs.newjobs.notion.domain.NotionQuotaEvidence;
 import com.jobs.newjobs.notion.domain.NotionSchema;
+import com.jobs.newjobs.observability.OperationalTelemetry;
+import com.jobs.newjobs.observability.OperationalTelemetry.Boundary;
+import com.jobs.newjobs.observability.OperationalTelemetry.BoundaryStatus;
+import com.jobs.newjobs.observability.OperationalTelemetry.NotionOperation;
 
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
@@ -59,17 +63,24 @@ public final class HttpNotionGateway implements NotionGateway {
 	private final HttpClient httpClient;
 	private final JsonMapper jsonMapper;
 	private final NotionProperties properties;
+	private final OperationalTelemetry telemetry;
 
 	@Autowired
-	public HttpNotionGateway(JsonMapper jsonMapper, NotionProperties properties) {
+	public HttpNotionGateway(JsonMapper jsonMapper, NotionProperties properties, OperationalTelemetry telemetry) {
 		this(HttpClient.newBuilder().connectTimeout(properties.connectTimeout())
-			.followRedirects(HttpClient.Redirect.NEVER).build(), jsonMapper, properties);
+			.followRedirects(HttpClient.Redirect.NEVER).build(), jsonMapper, properties, telemetry);
 	}
 
 	public HttpNotionGateway(HttpClient httpClient, JsonMapper jsonMapper, NotionProperties properties) {
+		this(httpClient, jsonMapper, properties, OperationalTelemetry.noop());
+	}
+
+	public HttpNotionGateway(HttpClient httpClient, JsonMapper jsonMapper, NotionProperties properties,
+		OperationalTelemetry telemetry) {
 		this.httpClient = httpClient;
 		this.jsonMapper = jsonMapper;
 		this.properties = properties;
+		this.telemetry = telemetry;
 	}
 
 	@Override
@@ -187,9 +198,12 @@ public final class HttpNotionGateway implements NotionGateway {
 		if (serialized.failure() != null) {
 			return new CreateResult.ReliablyNotSent(serialized.failure());
 		}
+		long started = System.nanoTime();
 		try {
 			HttpResponse<String> response = httpClient.send(jsonRequest("/v1/pages", serialized.body()).POST(
 				HttpRequest.BodyPublishers.ofString(serialized.body())).build(), HttpResponse.BodyHandlers.ofString());
+			observeWrite(NotionOperation.CREATE, response.statusCode(), started,
+				successful(response.statusCode()), codeFor(response.statusCode()).name());
 			if (successful(response.statusCode())) {
 				NotionPageSnapshot snapshot = parsePage(parse(response.body()));
 				return new CreateResult.Confirmed(snapshot.pageId(), snapshot);
@@ -200,15 +214,18 @@ public final class HttpNotionGateway implements NotionGateway {
 				: new CreateResult.ReliablyNotSent(failure);
 		}
 		catch (IOException exception) {
+			observeWrite(NotionOperation.CREATE, null, started, false, Code.TRANSPORT.name());
 			return new CreateResult.Ambiguous(new NotionFailure(Code.TRANSPORT, null, null,
 				"Notion create delivery could not be determined"));
 		}
 		catch (InterruptedException exception) {
 			Thread.currentThread().interrupt();
+			observeWrite(NotionOperation.CREATE, null, started, false, Code.INTERRUPTED.name());
 			return new CreateResult.Ambiguous(new NotionFailure(Code.INTERRUPTED, null, null,
 				"Notion create was interrupted after send began"));
 		}
 		catch (RuntimeException exception) {
+			observeWrite(NotionOperation.CREATE, null, started, false, Code.MALFORMED_RESPONSE.name());
 			return new CreateResult.Ambiguous(new NotionFailure(Code.MALFORMED_RESPONSE, null, null,
 				"Notion create response did not conclusively identify a page"));
 		}
@@ -229,10 +246,13 @@ public final class HttpNotionGateway implements NotionGateway {
 		if (serialized.failure() != null) {
 			return new UpdateResult.ReliablyNotSent(serialized.failure());
 		}
+		long started = System.nanoTime();
 		try {
 			HttpResponse<String> response = httpClient.send(jsonRequest("/v1/pages/" + segment(pageId), serialized.body())
 				.method("PATCH", HttpRequest.BodyPublishers.ofString(serialized.body())).build(),
 				HttpResponse.BodyHandlers.ofString());
+			observeWrite(NotionOperation.UPDATE, response.statusCode(), started,
+				successful(response.statusCode()), codeFor(response.statusCode()).name());
 			if (successful(response.statusCode())) {
 				return new UpdateResult.Reconciled(parsePage(parse(response.body())));
 			}
@@ -241,15 +261,18 @@ public final class HttpNotionGateway implements NotionGateway {
 				: new UpdateResult.ReliablyNotSent(failure);
 		}
 		catch (IOException exception) {
+			observeWrite(NotionOperation.UPDATE, null, started, false, Code.TRANSPORT.name());
 			return reconcileUpdate(pageId, patch, new NotionFailure(Code.TRANSPORT, null, null,
 				"Notion update requires read reconciliation"));
 		}
 		catch (InterruptedException exception) {
 			Thread.currentThread().interrupt();
+			observeWrite(NotionOperation.UPDATE, null, started, false, Code.INTERRUPTED.name());
 			return new UpdateResult.Ambiguous(new NotionFailure(Code.INTERRUPTED, null, null,
 				"Notion update requires read reconciliation"));
 		}
 		catch (RuntimeException exception) {
+			observeWrite(NotionOperation.UPDATE, null, started, false, Code.MALFORMED_RESPONSE.name());
 			return new UpdateResult.Ambiguous(new NotionFailure(Code.MALFORMED_RESPONSE, null, null,
 				"Notion update response requires read reconciliation"));
 		}
@@ -424,40 +447,59 @@ public final class HttpNotionGateway implements NotionGateway {
 	}
 
 	private TransportResult read(HttpRequest request) {
+		long started = System.nanoTime();
 		NotionFailure lastFailure = null;
 		for (int attempt = 1; attempt <= MAX_READ_ATTEMPTS; attempt++) {
 			try {
 				HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 				if (successful(response.statusCode())) {
-					return new TransportResult(response, null);
+					return observeRead(new TransportResult(response, null), started, attempt - 1);
 				}
 				lastFailure = failure(codeFor(response.statusCode()), response, safeProviderReason(response));
 				if (!retryable(response.statusCode()) || attempt == MAX_READ_ATTEMPTS) {
-					return new TransportResult(null, lastFailure);
+					return observeRead(new TransportResult(null, lastFailure), started, attempt - 1);
 				}
 				pause(retryDelay(response, attempt));
 			}
 			catch (IOException exception) {
 				lastFailure = new NotionFailure(Code.TRANSPORT, null, null, "Notion read transport failed");
 				if (attempt == MAX_READ_ATTEMPTS) {
-					return new TransportResult(null, lastFailure);
+					return observeRead(new TransportResult(null, lastFailure), started, attempt - 1);
 				}
 				try {
 					pause(Duration.ofMillis(100L << (attempt - 1)));
 				}
 				catch (InterruptedException interrupted) {
 					Thread.currentThread().interrupt();
-					return new TransportResult(null, new NotionFailure(Code.INTERRUPTED, null, null,
-						"Notion read was interrupted"));
+					return observeRead(new TransportResult(null, new NotionFailure(Code.INTERRUPTED, null, null,
+						"Notion read was interrupted")), started, attempt - 1);
 				}
 			}
 			catch (InterruptedException exception) {
 				Thread.currentThread().interrupt();
-				return new TransportResult(null, new NotionFailure(Code.INTERRUPTED, null, null,
-					"Notion read was interrupted"));
+				return observeRead(new TransportResult(null, new NotionFailure(Code.INTERRUPTED, null, null,
+					"Notion read was interrupted")), started, attempt - 1);
 			}
 		}
-		return new TransportResult(null, lastFailure);
+		return observeRead(new TransportResult(null, lastFailure), started, MAX_READ_ATTEMPTS - 1);
+	}
+
+	private TransportResult observeRead(TransportResult result, long started, int retries) {
+		Integer status = result.response() == null
+			? result.failure() == null ? null : result.failure().httpStatus() : result.response().statusCode();
+		telemetry.notionRequest(NotionOperation.READ, status,
+			Duration.ofNanos(System.nanoTime() - started), retries);
+		boolean available = result.failure() == null;
+		telemetry.boundary(Boundary.NOTION, available ? BoundaryStatus.AVAILABLE : BoundaryStatus.DEGRADED,
+			available ? "AVAILABLE" : result.failure().code().name());
+		return result;
+	}
+
+	private void observeWrite(NotionOperation operation, Integer status, long started, boolean available,
+		String reasonCode) {
+		telemetry.notionRequest(operation, status, Duration.ofNanos(System.nanoTime() - started), 0);
+		telemetry.boundary(Boundary.NOTION, available ? BoundaryStatus.AVAILABLE : BoundaryStatus.DEGRADED,
+			available ? "AVAILABLE" : reasonCode);
 	}
 
 	private HttpRequest.Builder requestBuilder(String path) {

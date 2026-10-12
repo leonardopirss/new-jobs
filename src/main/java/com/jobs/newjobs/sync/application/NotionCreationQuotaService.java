@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import com.jobs.newjobs.notion.application.NotionGateway;
 import com.jobs.newjobs.notion.domain.NotionQuotaEvidence;
+import com.jobs.newjobs.observability.OperationalTelemetry;
 import com.jobs.newjobs.sync.infrastructure.PostgresDestinationLock.Lease;
 
 @Service
@@ -20,17 +21,22 @@ public final class NotionCreationQuotaService {
 	private final NotionGateway notion;
 	private final SyncSafetyMarkerRepository markers;
 	private final Clock clock;
+	private final OperationalTelemetry telemetry;
 
 	@Autowired
-	public NotionCreationQuotaService(NotionGateway notion, SyncSafetyMarkerRepository markers, Clock clock) {
+	public NotionCreationQuotaService(NotionGateway notion, SyncSafetyMarkerRepository markers, Clock clock,
+		OperationalTelemetry telemetry) {
 		this.notion = notion;
 		this.markers = markers;
 		this.clock = clock;
+		this.telemetry = telemetry;
 	}
 
 	public QuotaAvailability inspect(Lease lease) {
 		lease.assertHeld();
-		if (!markers.findUnresolved(lease.destinationId()).isEmpty()) {
+		int unresolved = markers.findUnresolved(lease.destinationId()).size();
+		telemetry.unresolvedMarkers(unresolved);
+		if (unresolved > 0) {
 			return new QuotaAvailability.Incomplete("UNRESOLVED_CREATE_MARKERS");
 		}
 		NotionGateway.QuotaResult result = notion.scanAutomationCreations(clock.instant().minus(WINDOW));
@@ -42,7 +48,9 @@ public final class NotionCreationQuotaService {
 			distinctPages.add(evidence.pageId());
 		}
 		int used = distinctPages.size();
-		return new QuotaAvailability.Available(used, Math.max(0, MAX_CREATIONS - used));
+		int remaining = Math.max(0, MAX_CREATIONS - used);
+		telemetry.quotaRemaining(remaining);
+		return new QuotaAvailability.Available(used, remaining);
 	}
 
 	public sealed interface QuotaAvailability permits QuotaAvailability.Available, QuotaAvailability.Incomplete {
