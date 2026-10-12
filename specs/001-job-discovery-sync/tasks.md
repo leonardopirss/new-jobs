@@ -148,11 +148,11 @@ description: "Dependency-ordered implementation tasks for phases 4–8, grouped 
 
 **Independent Test**: Run AC-01 through AC-17, including concurrent/restart retries, ambiguous create, disconnect, deadline exhaustion, lock loss, and identity conflict; every index is accounted once.
 
-- [ ] T041 [P] [US6] Write idempotency state-machine tests for one reservation owner, same-key/different-hash `409`, bounded concurrent retry, restart takeover only when no work started, processing reconciliation, 48-hour expiry independent of markers, and itemized replay in `src/test/java/com/jobs/newjobs/imports/infrastructure/ImportIdempotencyTests.java`
-- [ ] T042 [US6] Implement canonical payload hashing and atomic `RESERVED→PROCESSING→COMPLETED|PARTIAL|FAILED_PRESTART|RECONCILIATION_REQUIRED` ownership/transitions in `src/main/java/com/jobs/newjobs/imports/infrastructure/JdbcImportIdempotencyRepository.java`
-- [ ] T043 [US6] Implement the 100-second deadline, at most five-second destination-lock budget, stop-before-unsafe-start, in-flight protection, request-order processing, and `NOT_PROCESSED` classification in `src/main/java/com/jobs/newjobs/imports/application/ImportService.java`
-- [ ] T044 [US6] Implement `POST /api/v1/jobs/import` with required `Idempotency-Key`, feature flag, exact status mapping, `Retry-After`, stable reason codes, and response invariants in `src/main/java/com/jobs/newjobs/imports/controller/ImportController.java`
-- [ ] T045 [US6] Implement and pass the traceability suite for N26 `AC-01` through `AC-17`, requiring indices `0..received-1` exactly once, bucket sum equality, `COMPLETED` only with no failure buckets, and reason codes for failed statuses in `src/test/java/com/jobs/newjobs/imports/ImportAcceptanceTests.java`
+- [X] T041 [P] [US6] Write idempotency state-machine tests for one reservation owner, same-key/different-hash `409`, bounded concurrent retry, restart takeover only when no work started, processing reconciliation, 48-hour expiry independent of markers, and itemized replay in `src/test/java/com/jobs/newjobs/imports/infrastructure/ImportIdempotencyTests.java`
+- [X] T042 [US6] Implement canonical payload hashing and atomic `RESERVED→PROCESSING→COMPLETED|PARTIAL|FAILED_PRESTART|RECONCILIATION_REQUIRED` ownership/transitions in `src/main/java/com/jobs/newjobs/imports/infrastructure/JdbcImportIdempotencyRepository.java`
+- [X] T043 [US6] Implement the 100-second deadline, at most five-second destination-lock budget, stop-before-unsafe-start, in-flight protection, request-order processing, and `NOT_PROCESSED` classification in `src/main/java/com/jobs/newjobs/imports/application/ImportService.java`
+- [X] T044 [US6] Implement `POST /api/v1/jobs/import` with required `Idempotency-Key`, feature flag, exact status mapping, `Retry-After`, stable reason codes, and response invariants in `src/main/java/com/jobs/newjobs/imports/controller/ImportController.java`
+- [X] T045 [US6] Implement and pass the traceability suite for N26 `AC-01` through `AC-17`, requiring indices `0..received-1` exactly once, bucket sum equality, `COMPLETED` only with no failure buckets, and reason codes for failed statuses in `src/test/java/com/jobs/newjobs/imports/ImportAcceptanceTests.java`
 
 **Checkpoint**: The governed Import API is complete without a LinkedIn collector or direct external Notion writer.
 

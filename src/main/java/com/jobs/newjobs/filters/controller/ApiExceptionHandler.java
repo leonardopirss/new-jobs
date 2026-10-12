@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.jobs.newjobs.filters.application.FilterNotFoundException;
 import com.jobs.newjobs.hiringcafe.application.HiringCafeProviderException;
+import com.jobs.newjobs.imports.controller.ImportApiException;
 import com.jobs.newjobs.shared.web.RequestIdFilter;
 import com.jobs.newjobs.sync.application.SyncPreflightUnavailableException;
 
@@ -90,6 +91,18 @@ public class ApiExceptionHandler {
 	) {
 		return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
 			.body(problem(HttpStatus.SERVICE_UNAVAILABLE, exception.reasonCode(), exception.getMessage(), request));
+	}
+
+	@ExceptionHandler(ImportApiException.class)
+	ResponseEntity<ProblemDetail> handleImportApi(ImportApiException exception, HttpServletRequest request) {
+		ResponseEntity.BodyBuilder response = ResponseEntity.status(exception.status());
+		if (exception.retryAfter() != null) {
+			long seconds = Math.max(1, (long) Math.ceil(exception.retryAfter().toMillis() / 1000.0));
+			response.header("Retry-After", Long.toString(seconds));
+		}
+		ProblemDetail problem = problem(exception.status(), exception.reasonCode(), exception.getMessage(), request);
+		if (exception.requestId() != null) problem.setProperty("requestId", exception.requestId());
+		return response.body(problem);
 	}
 
 	private static ProblemDetail problem(
