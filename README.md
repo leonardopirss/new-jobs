@@ -65,4 +65,35 @@ import, and scheduled admissions, then allows already-started work a bounded gra
 `HIRINGCAFE_SCHEDULED_AUTHORIZED=false` until the provider gate is closed; enabling only the scheduler
 does not bypass it.
 
-The provisional saved-filter and preview contracts are documented in `docs/api/filter-api.md`; the verified provider contract and its pagination/automation limitations are in `docs/integrations/hiringcafe.md`. Ranking behavior is documented in `docs/ranking.md`, with provisional scoring decisions recorded in `docs/architecture/decisions.md`. Product approval of the gated ranking defaults remains required before ranking integration is exposed.
+## Safe Notion synchronization and imports
+
+Notion writes are independently disabled by default. A write-capable environment requires a dedicated integration,
+opaque sandbox database/data-source IDs, the validated conceptual schema, and `NOTION_WRITES_ENABLED=true`.
+Manual sync and imports both use the same destination lock, identity reconciliation, immutable safety markers,
+300-page rolling quota, user-field ownership rules, and ambiguous-write recovery. Neither route archives, trashes,
+recreates, or clears user-managed tracking fields.
+
+The import API additionally requires `IMPORTS_ENABLED=true` and source-bound credentials configured through
+`IMPORT_CREDENTIALS_JSON`. Import credentials must be distinct from `MANUAL_API_KEY`; requests are limited to
+50 items and 512 KiB, ten admissions per integration per rolling minute, and a required idempotency key.
+
+## Operations and release status
+
+Deployment, compatible rollback, backup/restore, secret rotation, unresolved-marker reconciliation, and incident
+procedures live under `docs/operations/`. The release gate status is recorded in
+`docs/operations/release-checklist.md`. `/actuator/health` is anonymous and sanitized; `/actuator/metrics` requires
+the manual operator credential.
+
+Current limitations are explicit:
+
+- HiringCafe returns one bounded, non-pageable result set and documents conversational rather than scheduled use;
+- scheduled HiringCafe discovery remains disabled until provider authorization or a supported feed exists;
+- Notion writes and imports remain disabled until the authenticated sandbox, secret, TLS, backup/restore, and
+  reconciliation gates are closed for the target environment;
+- LinkedIn collection is not implemented; only a separately authenticated, source-bound import contract exists;
+- Notion view provisioning is optional and falls back to the documented manual view checklist.
+
+The saved-filter and preview contracts are documented in `docs/api/filter-api.md`; the verified provider contract
+and its pagination/automation limitations are in `docs/integrations/hiringcafe.md`. Ranking behavior is documented
+in `docs/ranking.md`, with approved scoring decisions and release reconfirmation in
+`docs/architecture/decisions.md`.
