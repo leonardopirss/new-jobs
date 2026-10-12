@@ -1,0 +1,473 @@
+openapi: 3.1.0
+info:
+  title: New Jobs API
+  version: 1.0.0
+  description: Contract for saved filters, ranked preview, manual synchronization, and governed imports.
+servers:
+  - url: https://localhost:8080
+paths:
+  /api/v1/filters:
+    get:
+      operationId: listSavedFilters
+      security: [{ manualBearer: [] }]
+      responses:
+        "200":
+          description: Saved filter configurations.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/SavedFilter" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      operationId: createSavedFilter
+      security: [{ manualBearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SaveFilterRequest" }
+      responses:
+        "201":
+          description: Created configuration.
+          headers:
+            Location: { schema: { type: string, format: uri-reference } }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SavedFilter" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+  /api/v1/filters/{id}:
+    parameters:
+      - $ref: "#/components/parameters/FilterId"
+    get:
+      operationId: getSavedFilter
+      security: [{ manualBearer: [] }]
+      responses:
+        "200":
+          description: Saved filter configuration.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SavedFilter" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      operationId: replaceSavedFilter
+      security: [{ manualBearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SaveFilterRequest" }
+      responses:
+        "200":
+          description: Updated configuration.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SavedFilter" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+    delete:
+      operationId: deleteSavedFilter
+      security: [{ manualBearer: [] }]
+      responses:
+        "204": { description: Configuration deleted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/jobs/preview:
+    post:
+      operationId: previewRankedJobs
+      description: Read-only discovery, filtering, deduplication, eligibility classification, and ranking.
+      security: [{ manualBearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TransientDiscoveryRequest" }
+      responses:
+        "200":
+          description: Ranked preview; never writes to Notion.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PreviewResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+        "502": { $ref: "#/components/responses/ProblemResponse" }
+  /api/v1/jobs/sync:
+    post:
+      operationId: synchronizeJobsManually
+      security: [{ manualBearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ManualSyncRequest" }
+      responses:
+        "200":
+          description: Complete or partial synchronized outcome.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SyncResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+        "503":
+          description: Lock or preflight unavailable before processing began.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+  /api/v1/jobs/import:
+    post:
+      operationId: importJobs
+      description: Imports a source-bound batch through the shared synchronization coordinator.
+      security: [{ importBearer: [] }]
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, minLength: 8, maxLength: 255 }
+        - name: X-Request-Id
+          in: header
+          required: false
+          schema: { type: string, maxLength: 128 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ImportRequest" }
+      responses:
+        "200":
+          description: Every input index is represented exactly once.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SyncResponse" }
+        "400": { $ref: "#/components/responses/ProblemResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/ProblemResponse" }
+        "413": { $ref: "#/components/responses/ProblemResponse" }
+        "415": { $ref: "#/components/responses/ProblemResponse" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+        "429":
+          description: Exact rolling-window admission limit reached.
+          headers:
+            Retry-After: { schema: { type: integer, minimum: 1 } }
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+        "503": { $ref: "#/components/responses/ProblemResponse" }
+components:
+  securitySchemes:
+    manualBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque-manual-api-key
+      description: High-entropy operator key, separate from import credentials.
+    importBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque-integration-api-key
+      description: Source-bound integration key with jobs:import scope.
+  parameters:
+    FilterId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  responses:
+    Unauthorized:
+      description: Missing or invalid credential.
+      headers:
+        WWW-Authenticate: { schema: { type: string, example: Bearer } }
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+    Forbidden:
+      description: Authenticated credential lacks authority.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+    NotFound:
+      description: Resource not found.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+    Unprocessable:
+      description: Semantic validation failed.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+    ProblemResponse:
+      description: Request failed.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+  schemas:
+    JobSource:
+      type: string
+      enum: [HIRING_CAFE, LINKEDIN]
+    DiscoverySource:
+      type: string
+      enum: [HIRING_CAFE]
+    SearchMode:
+      type: string
+      enum: [REMOTE_FROM_BRAZIL, INTERNATIONAL_RELOCATION, BOTH]
+    RankingPreferences:
+      type: object
+      additionalProperties: false
+      required: [searchMode, requiredTechnologies, desiredTechnologies, acceptedSeniorities]
+      properties:
+        searchMode: { $ref: "#/components/schemas/SearchMode" }
+        requiredTechnologies:
+          type: array
+          maxItems: 50
+          uniqueItems: true
+          items: { type: string, minLength: 1, maxLength: 80 }
+        desiredTechnologies:
+          type: array
+          maxItems: 50
+          uniqueItems: true
+          items: { type: string, minLength: 1, maxLength: 80 }
+        acceptedSeniorities:
+          type: array
+          maxItems: 20
+          uniqueItems: true
+          items: { type: string, minLength: 1, maxLength: 80 }
+    FilterSpecification:
+      type: object
+      additionalProperties: false
+      required: [commonFilters, providerSpecificFilters]
+      properties:
+        commonFilters:
+          type: array
+          maxItems: 30
+          items: { $ref: "#/components/schemas/CommonFilterGroup" }
+        providerSpecificFilters:
+          type: array
+          maxItems: 30
+          items: { $ref: "#/components/schemas/ProviderFilterGroup" }
+    CommonFilterGroup:
+      type: object
+      additionalProperties: false
+      required: [field, operation, matchMode, values]
+      properties:
+        field:
+          type: string
+          enum: [PUBLICATION_TIME, TITLE, KEYWORD, SENIORITY, EXPERIENCE, TECHNOLOGY, EMPLOYMENT_TYPE, COUNTRY, WORK_MODEL, LANGUAGE, BRAZIL_REMOTE_ELIGIBILITY, INTERNATIONAL_ELIGIBILITY, VISA_SPONSORSHIP, RELOCATION, MINIMUM_COMPENSATION, CURRENCY, COMPANY]
+        operation: { type: string, enum: [INCLUDE, EXCLUDE] }
+        matchMode: { type: string, enum: [ALL, ANY] }
+        values:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items: { type: string, minLength: 1, maxLength: 120 }
+    ProviderFilterGroup:
+      type: object
+      additionalProperties: false
+      required: [name, matchMode, values]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+        matchMode: { type: string, enum: [ALL, ANY] }
+        values:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items: { type: string, minLength: 1, maxLength: 120 }
+    FilterConfigurationFields:
+      type: object
+      required: [name, source, specification]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        source: { $ref: "#/components/schemas/DiscoverySource" }
+        specification: { $ref: "#/components/schemas/FilterSpecification" }
+        rankingPreferences: { $ref: "#/components/schemas/RankingPreferences" }
+    SaveFilterRequest:
+      allOf:
+        - $ref: "#/components/schemas/FilterConfigurationFields"
+      unevaluatedProperties: false
+    SavedFilter:
+      allOf:
+        - $ref: "#/components/schemas/FilterConfigurationFields"
+        - type: object
+          required: [id, version, createdAt, updatedAt]
+          properties:
+            id: { type: string, format: uuid }
+            version: { type: integer, format: int64, minimum: 0 }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+      unevaluatedProperties: false
+    TransientDiscoveryRequest:
+      type: object
+      additionalProperties: false
+      required: [source, specification]
+      properties:
+        source: { $ref: "#/components/schemas/DiscoverySource" }
+        specification: { $ref: "#/components/schemas/FilterSpecification" }
+        rankingPreferences: { $ref: "#/components/schemas/RankingPreferences" }
+    ManualSyncRequest:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [savedFilterId]
+          properties:
+            savedFilterId: { type: string, format: uuid }
+        - $ref: "#/components/schemas/TransientDiscoveryRequest"
+    PreviewResponse:
+      type: object
+      required: [jobs, summary, warnings]
+      properties:
+        jobs:
+          type: array
+          items: { $ref: "#/components/schemas/RankedJob" }
+        summary:
+          type: object
+          required: [discovered, returned, excludedIneligible, providerReturned, excludedOutsidePublicationWindow, complete]
+          properties:
+            discovered: { type: integer, minimum: 0 }
+            returned: { type: integer, minimum: 0 }
+            excludedIneligible: { type: integer, minimum: 0 }
+            providerReturned: { type: integer, minimum: 0 }
+            providerTotalMatches: { type: [integer, "null"], minimum: 0 }
+            excludedOutsidePublicationWindow: { type: integer, minimum: 0 }
+            complete: { type: boolean }
+        warnings:
+          type: array
+          items: { type: object, additionalProperties: true }
+    RankedJob:
+      type: object
+      required: [job, eligibility, score, technologyEvidence, explanations]
+      properties:
+        job: { $ref: "#/components/schemas/NormalizedJob" }
+        eligibility:
+          type: object
+          required: [status, reasons]
+          properties:
+            status: { type: string, enum: [ELIGIBLE, UNKNOWN] }
+            reasons: { type: array, items: { type: string } }
+            selectedPath: { $ref: "#/components/schemas/SearchMode" }
+        score:
+          type: object
+          required: [total, technologyPoints, geographyPoints, seniorityPoints, recencyPoints]
+          properties:
+            total: { type: number, minimum: 0, maximum: 100 }
+            technologyPoints: { type: number, minimum: 0, maximum: 100 }
+            geographyPoints: { type: number, minimum: 0, maximum: 100 }
+            seniorityPoints: { type: number, minimum: 0, maximum: 100 }
+            recencyPoints: { type: number, minimum: 0, maximum: 100 }
+        technologyEvidence:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [technology, evidence, reasons]
+            properties:
+              technology: { type: string }
+              evidence: { type: string, enum: [CONFIRMED, MENTIONED, UNKNOWN, NEGATED] }
+              reasons: { type: array, items: { type: string } }
+        explanations:
+          type: array
+          items: { type: string, maxLength: 500 }
+    ImportRequest:
+      type: object
+      additionalProperties: false
+      required: [jobs]
+      properties:
+        jobs:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items: { $ref: "#/components/schemas/ImportedJob" }
+    JobFields:
+      type: object
+      required: [title]
+      anyOf:
+        - required: [externalJobId]
+        - required: [url]
+      properties:
+        externalJobId: { type: string, minLength: 1, maxLength: 512 }
+        title: { type: string, minLength: 1, maxLength: 500 }
+        company: { type: string, maxLength: 500 }
+        url: { type: string, format: uri, maxLength: 2000 }
+        location: { type: string, maxLength: 500 }
+        workplaceType: { type: string, maxLength: 80 }
+        employmentTypes: { type: array, maxItems: 20, items: { type: string, maxLength: 80 } }
+        publishedAt: { type: string, format: date-time }
+        requirementsSummary: { type: string, maxLength: 10000 }
+        seniorityLevel: { type: string, maxLength: 120 }
+        minimumYearsExperience: { type: number, minimum: 0, maximum: 100 }
+        responsibilities: { type: array, maxItems: 100, items: { type: string, maxLength: 2000 } }
+        technologies: { type: array, maxItems: 100, items: { type: string, maxLength: 120 } }
+    ImportedJob:
+      allOf:
+        - $ref: "#/components/schemas/JobFields"
+      unevaluatedProperties: false
+    NormalizedJob:
+      type: object
+      additionalProperties: false
+      required: [source, title, employmentTypes, responsibilities, technologies]
+      properties:
+        source: { $ref: "#/components/schemas/JobSource" }
+        externalJobId: { type: string, maxLength: 512 }
+        title: { type: string, minLength: 1, maxLength: 500 }
+        company: { type: string, maxLength: 500 }
+        location: { type: string, maxLength: 500 }
+        workplaceType: { type: string, maxLength: 80 }
+        employmentTypes: { type: array, maxItems: 20, items: { type: string, maxLength: 80 } }
+        compensation:
+          type: object
+          additionalProperties: false
+          properties:
+            currency: { type: string, maxLength: 16 }
+            frequency: { type: string, maxLength: 32 }
+            minimum: { type: number }
+            maximum: { type: number }
+        publishedAt: { type: string, format: date-time }
+        requirementsSummary: { type: string, maxLength: 10000 }
+        seniorityLevel: { type: string, maxLength: 120 }
+        minimumYearsExperience: { type: number, minimum: 0, maximum: 100 }
+        responsibilities: { type: array, maxItems: 100, items: { type: string, maxLength: 2000 } }
+        technologies: { type: array, maxItems: 100, items: { type: string, maxLength: 120 } }
+        jobUrl: { type: string, format: uri, maxLength: 2000 }
+    SyncResponse:
+      type: object
+      description: Items contain each index from 0 through summary.received-1 exactly once and summary buckets sum to received. COMPLETED requires invalid+conflicted+uncertain+notProcessed=0; otherwise PARTIAL.
+      required: [requestId, status, summary, items]
+      properties:
+        requestId: { type: string, format: uuid }
+        status: { type: string, enum: [COMPLETED, PARTIAL] }
+        summary: { $ref: "#/components/schemas/SyncSummary" }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/SyncItem" }
+    SyncSummary:
+      type: object
+      required: [received, created, updated, unchanged, invalid, conflicted, uncertain, notProcessed]
+      properties:
+        received: { type: integer, minimum: 0 }
+        created: { type: integer, minimum: 0 }
+        updated: { type: integer, minimum: 0 }
+        unchanged: { type: integer, minimum: 0 }
+        invalid: { type: integer, minimum: 0 }
+        conflicted: { type: integer, minimum: 0 }
+        uncertain: { type: integer, minimum: 0 }
+        notProcessed: { type: integer, minimum: 0 }
+    SyncItem:
+      type: object
+      description: INVALID, CONFLICTED, UNCERTAIN, and NOT_PROCESSED require a stable reasonCode.
+      required: [index, status]
+      properties:
+        index: { type: integer, minimum: 0 }
+        status: { type: string, enum: [CREATED, UPDATED, UNCHANGED, INVALID, CONFLICTED, UNCERTAIN, NOT_PROCESSED] }
+        externalJobId: { type: string, maxLength: 512 }
+        notionPageId: { type: string, maxLength: 128 }
+        reasonCode: { type: string, maxLength: 64 }
+    Problem:
+      type: object
+      required: [type, title, status, code, requestId]
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string, maxLength: 200 }
+        status: { type: integer, minimum: 400, maximum: 599 }
+        code: { type: string, maxLength: 64 }
+        requestId: { type: string, format: uuid }
+        detail: { type: string, maxLength: 500 }

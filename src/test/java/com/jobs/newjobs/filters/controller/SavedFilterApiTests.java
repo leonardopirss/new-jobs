@@ -36,6 +36,7 @@ import tools.jackson.databind.json.JsonMapper;
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
 @Import(SavedFilterApiTests.ProviderStubConfiguration.class)
 class SavedFilterApiTests {
+	private static final String MANUAL_API_KEY = "manual-filter-api-test-key-000000000001";
 	@Container
 	static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer(DockerImageName.parse("postgres:17.6-alpine"))
 		.withDatabaseName("job_discovery")
@@ -47,6 +48,7 @@ class SavedFilterApiTests {
 		registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
 		registry.add("spring.datasource.username", POSTGRES::getUsername);
 		registry.add("spring.datasource.password", POSTGRES::getPassword);
+		registry.add("app.security.manual.current-key", () -> MANUAL_API_KEY);
 	}
 
 	@Autowired
@@ -179,7 +181,8 @@ class SavedFilterApiTests {
 
 	private HttpResponse<String> send(String method, String path, String body) throws Exception {
 		HttpRequest.Builder request = HttpRequest.newBuilder()
-			.uri(URI.create("http://localhost:" + port + path));
+			.uri(URI.create("http://localhost:" + port + path))
+			.header("Authorization", "Bearer " + MANUAL_API_KEY);
 		if (body == null) {
 			request.method(method, HttpRequest.BodyPublishers.noBody());
 		}
