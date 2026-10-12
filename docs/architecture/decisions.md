@@ -31,3 +31,12 @@ Ranking decisions R1–R7 approve eligibility tiers, technology evidence, top-le
 The product owner explicitly approved exact-category seniority matching, proportional redistribution of the
 30-point geography weight inside each eligibility tier, and linear 24-hour recency decay. Any future change
 requires a replacement decision and updated golden fixtures before implementation.
+
+### Phase 8 release reconfirmation
+
+Reconfirmed on 2026-10-12 with no scoring or compatibility change. The release candidate retains exact-category
+seniority, proportional redistribution inside eligibility tiers, linear 24-hour recency decay, technology
+`75/25`, and the published deterministic tie breakers. The golden ranking suite remains the executable gate.
+
+External release gates are tracked separately in `docs/operations/release-checklist.md`; an open provider or
+environment gate disables only the affected capability and does not alter this approved ranking profile.

@@ -43,13 +43,13 @@ The intended integration configuration shape is:
     "integrationId": "linkedin-local-test",
     "source": "LINKEDIN",
     "scopes": ["jobs:import"],
-    "currentSecret": "<separate high-entropy key>",
+    "currentKey": "<separate high-entropy key>",
     "enabled": true
   }
 ]
 ```
 
-Do not reuse `MANUAL_API_KEY` as an import secret. A previous secret is accepted only when an explicit `previousValidUntil` is still in the future.
+Do not reuse `MANUAL_API_KEY` as an import key. A `previousKey` is accepted only when an explicit `previousValidUntil` is still in the future.
 
 ## 3. Configure a Notion sandbox
 

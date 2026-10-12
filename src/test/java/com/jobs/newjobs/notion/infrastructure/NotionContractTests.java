@@ -92,6 +92,22 @@ class NotionContractTests {
 	}
 
 	@Test
+	void acceptsCurrentPageResponsesThatOmitTheLegacyArchivedFlag() {
+		server.createContext("/v1/data_sources", exchange -> respond(exchange, 200, """
+			{"object":"list","results":[{"object":"page","id":"page-current","in_trash":false,
+			 "properties":{"Identity Conflict":{"type":"checkbox"}}}],
+			 "has_more":false,"next_cursor":null}
+			"""));
+
+		IdentityResult result = gateway("source-id")
+			.queryByIdentity(JobSource.HIRING_CAFE, "provider-42", null);
+
+		assertThat(result).isInstanceOf(IdentityResult.One.class);
+		assertThat(((IdentityResult.One) result).page().archived()).isFalse();
+		assertThat(((IdentityResult.One) result).page().inTrash()).isFalse();
+	}
+
+	@Test
 	void mapsSchemaPropertyTypesAndValidatorRequiresNewWhileAllowingExtraProperties() {
 		server.createContext("/v1/data_sources", exchange -> respond(exchange, 200, schemaResponse()));
 

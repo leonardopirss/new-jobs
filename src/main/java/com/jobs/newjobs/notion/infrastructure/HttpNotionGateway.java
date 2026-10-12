@@ -427,8 +427,8 @@ public final class HttpNotionGateway implements NotionGateway {
 				values.put(property.getKey(), value);
 			}
 		}
-		return new NotionPageSnapshot(pageId, page.path("archived").booleanValue(),
-			page.path("in_trash").booleanValue(), values);
+		return new NotionPageSnapshot(pageId, page.path("archived").booleanValue(false),
+			page.path("in_trash").booleanValue(false), values);
 	}
 
 	private NotionPropertyValue parseProperty(JsonNode property) {
@@ -439,7 +439,7 @@ public final class HttpNotionGateway implements NotionGateway {
 			case URL -> new NotionPropertyValue.Link(text(property.path("url")));
 			case DATE -> new NotionPropertyValue.Date(parseInstant(text(property.path("date").path("start"))));
 			case MULTI_SELECT -> new NotionPropertyValue.Options(names(property.path("multi_select")));
-			case CHECKBOX -> new NotionPropertyValue.Flag(property.path("checkbox").booleanValue());
+			case CHECKBOX -> new NotionPropertyValue.Flag(property.path("checkbox").booleanValue(false));
 			case NUMBER -> property.path("number").isNumber()
 				? new NotionPropertyValue.Numeric(property.path("number").decimalValue()) : null;
 			case UNKNOWN -> null;
@@ -486,7 +486,8 @@ public final class HttpNotionGateway implements NotionGateway {
 
 	private TransportResult observeRead(TransportResult result, long started, int retries) {
 		Integer status = result.response() == null
-			? result.failure() == null ? null : result.failure().httpStatus() : result.response().statusCode();
+			? result.failure() == null ? null : result.failure().httpStatus()
+			: Integer.valueOf(result.response().statusCode());
 		telemetry.notionRequest(NotionOperation.READ, status,
 			Duration.ofNanos(System.nanoTime() - started), retries);
 		boolean available = result.failure() == null;

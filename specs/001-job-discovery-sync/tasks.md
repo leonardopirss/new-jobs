@@ -180,11 +180,11 @@ description: "Dependency-ordered implementation tasks for phases 4–8, grouped 
 
 **Independent Test**: Run all automated/sandbox scenarios and verify every gate has evidence, owner, rollback, and fail-closed behavior.
 
-- [ ] T051 [P] [US5] Complete the failure-injection matrix for Notion `429/5xx`, pagination incompleteness, malformed items, lock loss, crash boundaries, client disconnect, and retry exhaustion in `src/test/java/com/jobs/newjobs/resilience/ExternalFailureInjectionTests.java`
-- [ ] T052 [P] [US5] Add backward-compatible deployment/rollback, Flyway, PostgreSQL backup/restore, secret rotation/revocation, unresolved-marker reconciliation, and incident runbooks in `docs/operations/`
-- [ ] T053 [US5] Execute the authenticated sandbox flow from `specs/001-job-discovery-sync/quickstart.md` and record sanitized evidence in `artifacts/phase8-sandbox-report.md`
-- [ ] T054 [US5] Reconfirm the approved ranking profile and close Notion schema/capability, TLS, telemetry, backup/restore, and HiringCafe authorization gates in `docs/architecture/decisions.md` and `docs/operations/release-checklist.md`
-- [ ] T055 [US5] Run `./mvnw verify`, validate `contracts/openapi.yaml`, confirm AC-01–AC-17 and all story checkpoints, update implemented capabilities/limitations in `README.md`, and keep every capability with an unresolved gate disabled
+- [X] T051 [P] [US5] Complete the failure-injection matrix for Notion `429/5xx`, pagination incompleteness, malformed items, lock loss, crash boundaries, client disconnect, and retry exhaustion in `src/test/java/com/jobs/newjobs/resilience/ExternalFailureInjectionTests.java`
+- [X] T052 [P] [US5] Add backward-compatible deployment/rollback, Flyway, PostgreSQL backup/restore, secret rotation/revocation, unresolved-marker reconciliation, and incident runbooks in `docs/operations/`
+- [X] T053 [US5] Execute the authenticated sandbox flow from `specs/001-job-discovery-sync/quickstart.md` and record sanitized evidence in `artifacts/phase8-sandbox-report.md`
+- [X] T054 [US5] Reconfirm the approved ranking profile and close Notion schema/capability, TLS, telemetry, backup/restore, and HiringCafe authorization gates in `docs/architecture/decisions.md` and `docs/operations/release-checklist.md`
+- [X] T055 [US5] Run `./mvnw verify`, validate `contracts/openapi.yaml`, confirm AC-01–AC-17 and all story checkpoints, update implemented capabilities/limitations in `README.md`, and keep every capability with an unresolved gate disabled
 
 **Checkpoint**: Phases 4–8 are release-ready; unresolved provider authorization prevents only the affected automation, never weakens safeguards.
 
