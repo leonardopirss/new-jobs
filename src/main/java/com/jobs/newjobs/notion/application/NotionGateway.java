@@ -53,9 +53,10 @@ public interface NotionGateway {
 		record Ambiguous(NotionFailure failure) implements CreateResult { }
 	}
 
-	sealed interface UpdateResult permits UpdateResult.Reconciled, UpdateResult.ReliablyNotSent,
-		UpdateResult.Ambiguous {
+	sealed interface UpdateResult permits UpdateResult.Reconciled, UpdateResult.ConclusiveNotApplied,
+		UpdateResult.ReliablyNotSent, UpdateResult.Ambiguous {
 		record Reconciled(NotionPageSnapshot snapshot) implements UpdateResult { }
+		record ConclusiveNotApplied(NotionPageSnapshot snapshot, NotionFailure failure) implements UpdateResult { }
 		record ReliablyNotSent(NotionFailure failure) implements UpdateResult { }
 		record Ambiguous(NotionFailure failure) implements UpdateResult { }
 	}

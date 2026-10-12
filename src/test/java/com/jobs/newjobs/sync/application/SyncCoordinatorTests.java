@@ -163,6 +163,7 @@ class SyncCoordinatorTests {
 		NotionPageMapper mapper = new NotionPageMapper(canonicalizer);
 		return new SyncCoordinator(
 			new PostgresDestinationLock(dataSource), gateway, new NotionSchemaValidator(), canonicalizer, mapper,
+			new NotionUpdateService(gateway, mapper, clock),
 			markers, new SyncMarkerProtocol(markers, gateway, clock),
 			new NotionCreationQuotaService(gateway, markers, clock), clock);
 	}

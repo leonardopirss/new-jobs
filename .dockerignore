@@ -1,0 +1,12 @@
+target/
+.git/
+.gitignore
+.dockerignore
+Dockerfile*
+*.log*
+.env*
+.idea/
+.vscode/
+artifacts/
+specs.zip
+src/specs.zip
