@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import com.jobs.newjobs.filters.application.FilterNotFoundException;
 import com.jobs.newjobs.hiringcafe.application.HiringCafeProviderException;
 import com.jobs.newjobs.shared.web.RequestIdFilter;
+import com.jobs.newjobs.sync.application.SyncPreflightUnavailableException;
 
 import jakarta.servlet.http.HttpServletRequest;
 @RestControllerAdvice
@@ -80,6 +81,15 @@ public class ApiExceptionHandler {
 			.body(problem(
 				HttpStatus.BAD_GATEWAY, "HIRINGCAFE_UNAVAILABLE", "HiringCafe is temporarily unavailable", request
 			));
+	}
+
+	@ExceptionHandler(SyncPreflightUnavailableException.class)
+	ResponseEntity<ProblemDetail> handleSyncPreflightUnavailable(
+		SyncPreflightUnavailableException exception,
+		HttpServletRequest request
+	) {
+		return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+			.body(problem(HttpStatus.SERVICE_UNAVAILABLE, exception.reasonCode(), exception.getMessage(), request));
 	}
 
 	private static ProblemDetail problem(
