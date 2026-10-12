@@ -1,6 +1,6 @@
 # Job Discovery & Notion Sync
 
-Java/Spring Boot service for discovering, ranking, and safely synchronizing jobs to Notion. The foundation, filter contracts, and a bounded HiringCafe MCP preview connector are implemented. Ranking, Notion writes, imports, scheduling, and LinkedIn collection are not implemented.
+Java/Spring Boot service for discovering, ranking, and safely synchronizing jobs to Notion. The foundation, filter contracts, bounded HiringCafe MCP preview connector, and deterministic Ranking v1 domain service are implemented. Notion writes, imports, scheduling, and LinkedIn collection are not implemented.
 
 ## Requirements
 
@@ -37,4 +37,4 @@ The integration test uses Testcontainers and automatically starts an isolated Po
 
 Configuration fails at startup when `DB_PASSWORD` is absent. Do not commit `.env` or real credentials. See `docs/BACKEND_PROFILE.md` for architectural and operational decisions.
 
-The provisional saved-filter and preview contracts are documented in `docs/api/filter-api.md`; the verified provider contract and its pagination/automation limitations are in `docs/integrations/hiringcafe.md`. Manual API authentication remains an open production gate, so these endpoints must stay inside a trusted development environment.
+The provisional saved-filter and preview contracts are documented in `docs/api/filter-api.md`; the verified provider contract and its pagination/automation limitations are in `docs/integrations/hiringcafe.md`. Ranking behavior is documented in `docs/ranking.md`, with provisional scoring decisions recorded in `docs/architecture/decisions.md`. Manual API authentication and product approval of the ranking defaults remain production gates, so these endpoints must stay inside a trusted development environment.
