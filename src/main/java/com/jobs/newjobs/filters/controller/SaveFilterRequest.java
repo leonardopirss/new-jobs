@@ -10,6 +10,7 @@ import jakarta.validation.constraints.Size;
 public record SaveFilterRequest(
 	@NotBlank @Size(max = 120) String name,
 	@NotNull JobSource source,
-	@NotNull @Valid FilterSpecificationRequest specification
+	@NotNull @Valid FilterSpecificationRequest specification,
+	@Valid RankingPreferencesRequest rankingPreferences
 ) {
 }

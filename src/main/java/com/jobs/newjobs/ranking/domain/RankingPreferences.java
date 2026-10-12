@@ -10,6 +10,10 @@ public record RankingPreferences(
 	List<String> desiredTechnologies,
 	List<String> acceptedSeniorities
 ) {
+	public static RankingPreferences compatibilityProfile() {
+		return new RankingPreferences(SearchMode.BOTH, List.of(), List.of(), List.of());
+	}
+
 	public RankingPreferences {
 		if (searchMode == null) {
 			throw new IllegalArgumentException("searchMode is required");

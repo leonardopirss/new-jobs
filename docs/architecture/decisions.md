@@ -2,9 +2,10 @@
 
 ## ADR-003 — Ranking v1 defaults
 
-- Status: provisional implementation default; product sign-off remains required before production exposure.
+- Status: approved for implementation and production exposure.
 - Date: 2026-10-11.
-- Scope: Phase 3 only. No HTTP contract, persistence schema, or external write is introduced.
+- Approved: explicitly confirmed by the product owner on 2026-10-11.
+- Scope: Ranking preferences, ranked preview, and downstream ranking-ordered selection.
 
 ### Context
 
@@ -25,6 +26,8 @@ Ranking decisions R1–R7 approve eligibility tiers, technology evidence, top-le
 - The ranker exposes explanations for eligibility, weight redistribution, seniority and recency. Technology evidence retains per-technology reasons.
 - Provider fields that are not available remain `UNKNOWN`; missing sponsorship is never treated as denial, and sponsorship support is not presented as a visa guarantee.
 
-### Revisit gate
+### Approval record
 
-Before ranking is exposed through a production endpoint or used for irreversible selection, obtain product approval for the three defaults above and update this ADR status. Any change requires updated golden fixtures.
+The product owner explicitly approved exact-category seniority matching, proportional redistribution of the
+30-point geography weight inside each eligibility tier, and linear 24-hour recency decay. Any future change
+requires a replacement decision and updated golden fixtures before implementation.
