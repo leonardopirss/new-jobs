@@ -84,11 +84,11 @@ description: "Dependency-ordered implementation tasks for phases 4–8, grouped 
 
 **Independent Test**: Two service instances contend for one sandbox destination; one owns the session lock, marker commit always precedes POST, response loss leaves `UNCERTAIN`, and no second POST occurs.
 
-- [ ] T021 [P] [US2] Write Testcontainers tests for dedicated-connection `pg_try_advisory_lock`, five-second bounded acquisition, two-instance serialization, explicit release, and connection-loss stop behavior in `src/test/java/com/jobs/newjobs/sync/infrastructure/PostgresDestinationLockTests.java`
-- [ ] T022 [P] [US2] Add `V4__create_sync_safety_markers.sql` with separate nullable external-ID/URL hashes, at least one identity required, state/timestamp consistency, and partial unique active indexes per destination+source+hash in `src/main/resources/db/migration/`
-- [ ] T023 [US2] Implement the dedicated-session destination lock and lock-loss checks in `src/main/java/com/jobs/newjobs/sync/infrastructure/PostgresDestinationLock.java`, never holding a database transaction across Notion HTTP calls
-- [ ] T024 [US2] Implement marker repository/state transitions `PREPARED→IN_FLIGHT→CONFIRMED|NOT_SENT|UNCERTAIN|CONFLICT`, commit-before-POST, no timeout release, and dual-identity collision checks in `src/main/java/com/jobs/newjobs/sync/infrastructure/JdbcSyncSafetyMarkerRepository.java`
-- [ ] T025 [US2] Write failure-injection tests for marker commit failure, crash before POST, connection loss during/after POST, ambiguous `5xx`, negative lookup, operation-ID reconciliation, and unresolved-marker survival in `src/test/java/com/jobs/newjobs/sync/application/SyncMarkerFailureInjectionTests.java`
+- [X] T021 [P] [US2] Write Testcontainers tests for dedicated-connection `pg_try_advisory_lock`, five-second bounded acquisition, two-instance serialization, explicit release, and connection-loss stop behavior in `src/test/java/com/jobs/newjobs/sync/infrastructure/PostgresDestinationLockTests.java`
+- [X] T022 [P] [US2] Add `V4__create_sync_safety_markers.sql` with separate nullable external-ID/URL hashes, at least one identity required, state/timestamp consistency, and partial unique active indexes per destination+source+hash in `src/main/resources/db/migration/`
+- [X] T023 [US2] Implement the dedicated-session destination lock and lock-loss checks in `src/main/java/com/jobs/newjobs/sync/infrastructure/PostgresDestinationLock.java`, never holding a database transaction across Notion HTTP calls
+- [X] T024 [US2] Implement marker repository/state transitions `PREPARED→IN_FLIGHT→CONFIRMED|NOT_SENT|UNCERTAIN|CONFLICT`, commit-before-POST, no timeout release, and dual-identity collision checks in `src/main/java/com/jobs/newjobs/sync/infrastructure/JdbcSyncSafetyMarkerRepository.java`
+- [X] T025 [US2] Write failure-injection tests for marker commit failure, crash before POST, connection loss during/after POST, ambiguous `5xx`, negative lookup, operation-ID reconciliation, and unresolved-marker survival in `src/test/java/com/jobs/newjobs/sync/application/SyncMarkerFailureInjectionTests.java`
 
 **Checkpoint**: No Notion create can occur without a committed durable marker and destination lock.
 
