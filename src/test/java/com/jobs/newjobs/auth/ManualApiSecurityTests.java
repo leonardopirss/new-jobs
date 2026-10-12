@@ -31,6 +31,7 @@ import com.jobs.newjobs.hiringcafe.application.HiringCafeGateway;
 import com.jobs.newjobs.hiringcafe.application.HiringCafeProviderPage;
 import com.jobs.newjobs.auth.application.ManualCredentialVerifier;
 import com.jobs.newjobs.auth.config.ManualCredentialProperties;
+import com.jobs.newjobs.observability.OperationalTelemetry;
 
 @Testcontainers
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
@@ -63,6 +64,9 @@ class ManualApiSecurityTests {
 
  @org.springframework.beans.factory.annotation.Autowired
  private AtomicInteger providerInvocations;
+
+	@org.springframework.beans.factory.annotation.Autowired
+	private OperationalTelemetry telemetry;
 
  private final HttpClient httpClient = HttpClient.newBuilder()
   .followRedirects(HttpClient.Redirect.NEVER)
@@ -102,6 +106,18 @@ class ManualApiSecurityTests {
   assertThat(unknown.statusCode()).isEqualTo(403);
   assertThat(unknown.body()).contains("ACCESS_DENIED");
  }
+
+	@Test
+	void protectsOperationalMetricsWithTheManualCredential() throws Exception {
+		telemetry.importAdmission(true);
+		assertThat(send("GET", "/actuator/metrics", null, null).statusCode()).isEqualTo(401);
+		assertThat(send("GET", "/actuator/metrics", null, "wrong-key").statusCode()).isEqualTo(401);
+
+		HttpResponse<String> metrics = send("GET", "/actuator/metrics", null, CURRENT_KEY);
+
+		assertThat(metrics.statusCode()).isEqualTo(200);
+		assertThat(metrics.body()).contains("jobs.import.admissions");
+	}
 
 	@Test
 	void invalidCredentialNeverInvokesTheProvider() throws Exception {

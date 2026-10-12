@@ -14,7 +14,7 @@ import com.jobs.newjobs.scheduling.SchedulerProperties;
 
 class ExternalFeatureConfigurationValidatorTests {
 	private static final SchedulerProperties DISABLED_SCHEDULER = new SchedulerProperties(
-		false, Duration.ofHours(6), ZoneId.of("UTC")
+		false, false, Duration.ofHours(6), ZoneId.of("UTC"), Duration.ofSeconds(30)
 	);
 
 	@Test
@@ -43,7 +43,8 @@ class ExternalFeatureConfigurationValidatorTests {
 			new FeatureProperties(false, true), notion("", "", ""), DISABLED_SCHEDULER
 		).afterPropertiesSet()).hasMessageContaining("imports cannot be enabled");
 
-		SchedulerProperties enabled = new SchedulerProperties(true, Duration.ofHours(1), ZoneId.of("UTC"));
+		SchedulerProperties enabled = new SchedulerProperties(
+			true, false, Duration.ofHours(1), ZoneId.of("UTC"), Duration.ofSeconds(30));
 		assertThatThrownBy(() -> validator(
 			new FeatureProperties(false, false), notion("", "", ""), enabled
 		).afterPropertiesSet()).hasMessageContaining("scheduler cannot be enabled");

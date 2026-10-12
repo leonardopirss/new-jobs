@@ -17,6 +17,7 @@ import java.net.URI;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
@@ -45,8 +46,11 @@ import com.jobs.newjobs.imports.infrastructure.JdbcImportIdempotencyRepository.R
 import com.jobs.newjobs.imports.infrastructure.JdbcImportRateLimiter;
 import com.jobs.newjobs.jobs.domain.JobSource;
 import com.jobs.newjobs.notion.config.NotionProperties;
+import com.jobs.newjobs.observability.OperationalTelemetry;
 import com.jobs.newjobs.jobs.domain.NormalizedJob;
 import com.jobs.newjobs.shared.config.FeatureProperties;
+import com.jobs.newjobs.shared.lifecycle.GracefulWorkShutdown;
+import com.jobs.newjobs.scheduling.SchedulerProperties;
 import com.jobs.newjobs.sync.application.SyncCoordinator;
 import com.jobs.newjobs.sync.application.SyncExecutionPolicy;
 import com.jobs.newjobs.sync.domain.SyncItemOutcome;
@@ -54,6 +58,7 @@ import com.jobs.newjobs.sync.domain.SyncItemStatus;
 import com.jobs.newjobs.sync.domain.SyncRunResult;
 
 import jakarta.validation.Validation;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 class ImportAcceptanceTests {
 	private static final Instant NOW = Instant.parse("2026-10-12T12:00:00Z");
@@ -115,6 +120,22 @@ class ImportAcceptanceTests {
 		assertThatThrownBy(() -> fixture.service.importJobs(PRINCIPAL, KEY, new ImportRequest(jobs)))
 			.isInstanceOf(ImportApiException.class)
 			.extracting(exception -> ((ImportApiException) exception).status().value()).isEqualTo(422);
+	}
+
+	@Test
+	void rejectsNewAdmissionsAfterShutdownBegins() {
+		Fixture fixture = fixture();
+		fixture.shutdown.stop();
+
+		assertThatThrownBy(() -> fixture.service.importJobs(PRINCIPAL, KEY,
+			new ImportRequest(List.of(job("a", "Job")))))
+			.isInstanceOf(ImportApiException.class)
+			.satisfies(exception -> {
+				ImportApiException failure = (ImportApiException) exception;
+				assertThat(failure.status().value()).isEqualTo(503);
+				assertThat(failure.reasonCode()).isEqualTo("SERVICE_SHUTTING_DOWN");
+			});
+		verify(fixture.rateLimiter, org.mockito.Mockito.never()).tryAdmit(anyString(), any());
 	}
 
 	@Test
@@ -227,10 +248,13 @@ class ImportAcceptanceTests {
 			new JdbcImportRateLimiter.AdmissionDecision(true, Duration.ZERO));
 		when(idempotency.reserve(anyString(), anyString(), anyString(), anyInt()))
 			.thenReturn(new Reservation.Owner(UUID.randomUUID(), "owner-token", false));
+		GracefulWorkShutdown shutdown = new GracefulWorkShutdown(new SchedulerProperties(false, false,
+			Duration.ofHours(6), ZoneId.of("UTC"), Duration.ofSeconds(30)));
 		ImportService service = new ImportService(new FeatureProperties(true, true), notion(), rateLimiter,
 			idempotency, coordinator, Validation.buildDefaultValidatorFactory().getValidator(),
-			Clock.fixed(NOW, ZoneOffset.UTC));
-		return new Fixture(service, idempotency, coordinator);
+			Clock.fixed(NOW, ZoneOffset.UTC), new OperationalTelemetry(new SimpleMeterRegistry()),
+			shutdown);
+		return new Fixture(service, rateLimiter, idempotency, coordinator, shutdown);
 	}
 
 	private static NotionProperties notion() {
@@ -244,6 +268,7 @@ class ImportAcceptanceTests {
 			List.of("Build services"), List.of("Java"));
 	}
 
-	private record Fixture(ImportService service, JdbcImportIdempotencyRepository idempotency,
-		SyncCoordinator coordinator) { }
+	private record Fixture(ImportService service, JdbcImportRateLimiter rateLimiter,
+		JdbcImportIdempotencyRepository idempotency, SyncCoordinator coordinator,
+		GracefulWorkShutdown shutdown) { }
 }

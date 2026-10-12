@@ -19,7 +19,10 @@ import com.jobs.newjobs.imports.infrastructure.JdbcImportIdempotencyRepository.R
 import com.jobs.newjobs.imports.infrastructure.JdbcImportRateLimiter;
 import com.jobs.newjobs.jobs.domain.NormalizedJob;
 import com.jobs.newjobs.notion.config.NotionProperties;
+import com.jobs.newjobs.observability.OperationalTelemetry;
 import com.jobs.newjobs.shared.config.FeatureProperties;
+import com.jobs.newjobs.shared.lifecycle.GracefulWorkShutdown;
+import com.jobs.newjobs.shared.lifecycle.GracefulWorkShutdown.WorkKind;
 import com.jobs.newjobs.sync.application.SyncCoordinator;
 import com.jobs.newjobs.sync.application.SyncExecutionPolicy;
 import com.jobs.newjobs.sync.application.SyncPreflightUnavailableException;
@@ -43,11 +46,15 @@ public final class ImportService {
 	private final SyncCoordinator coordinator;
 	private final Validator validator;
 	private final Clock clock;
+	private final OperationalTelemetry telemetry;
+	private final GracefulWorkShutdown shutdown;
 
 	public ImportService(FeatureProperties features, NotionProperties notion, JdbcImportRateLimiter rateLimiter,
-		JdbcImportIdempotencyRepository idempotency, SyncCoordinator coordinator, Validator validator, Clock clock) {
+		JdbcImportIdempotencyRepository idempotency, SyncCoordinator coordinator, Validator validator, Clock clock,
+		OperationalTelemetry telemetry, GracefulWorkShutdown shutdown) {
 		this.features = features; this.notion = notion; this.rateLimiter = rateLimiter;
 		this.idempotency = idempotency; this.coordinator = coordinator; this.validator = validator; this.clock = clock;
+		this.telemetry = telemetry; this.shutdown = shutdown;
 	}
 
 	public SyncRunResult importJobs(IntegrationPrincipal principal, String idempotencyKey, ImportRequest request) {
@@ -57,10 +64,21 @@ public final class ImportService {
 		if (!features.importsEnabled() || !features.notionWritesEnabled()) {
 			throw ImportApiException.unavailable("IMPORTS_DISABLED", "Job imports are disabled");
 		}
+		var permit = shutdown.begin(WorkKind.IMPORT)
+			.orElseThrow(() -> ImportApiException.unavailable("SERVICE_SHUTTING_DOWN",
+				"New imports are not accepted during shutdown"));
+		try (permit) {
+			return importAccepted(principal, idempotencyKey, request, deadline);
+		}
+	}
+
+	private SyncRunResult importAccepted(IntegrationPrincipal principal, String idempotencyKey, ImportRequest request,
+		Instant deadline) {
 		String hash = JdbcImportIdempotencyRepository.canonicalPayloadHash(principal.source(), request);
 
 		JdbcImportRateLimiter.AdmissionDecision admission =
 			rateLimiter.tryAdmit(principal.integrationId(), UUID.randomUUID());
+		telemetry.importAdmission(admission.admitted());
 		if (!admission.admitted()) throw ImportApiException.rateLimited(admission.retryAfter());
 
 		Reservation reservation = idempotency.reserve(

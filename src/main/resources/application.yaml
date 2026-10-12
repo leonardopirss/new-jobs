@@ -18,7 +18,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health
+        include: health,metrics
 
 app:
   security:
@@ -42,8 +42,10 @@ app:
     request-timeout: ${NOTION_REQUEST_TIMEOUT:10s}
   scheduler:
     enabled: ${JOB_SCHEDULER_ENABLED:false}
+    provider-authorized: ${HIRINGCAFE_SCHEDULED_AUTHORIZED:false}
     interval: ${JOB_SCHEDULER_INTERVAL:PT6H}
     timezone: ${JOB_SCHEDULER_TIMEZONE:UTC}
+    shutdown-grace: ${JOB_SHUTDOWN_GRACE:PT30S}
 
 hiringcafe:
   mcp-url: ${HIRINGCAFE_MCP_URL:https://hiringcafe.com/api/chatgpt/mcp}

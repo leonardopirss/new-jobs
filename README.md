@@ -1,6 +1,6 @@
 # Job Discovery & Notion Sync
 
-Java/Spring Boot service for discovering, ranking, and safely synchronizing jobs to Notion. The foundation, filter contracts, bounded HiringCafe MCP preview connector, and deterministic Ranking v1 domain service are implemented. Notion writes, imports, scheduling, and LinkedIn collection are not implemented.
+Java/Spring Boot service for discovering, ranking, and safely synchronizing jobs to Notion. Manual synchronization, the governed import API, safe Notion writes, deterministic ranking, and distributed scheduled execution are implemented. LinkedIn collection is intentionally external and scheduled HiringCafe automation remains authorization-gated.
 
 ## Requirements
 
@@ -43,5 +43,26 @@ accepted only during the bounded rotation overlap. Do not reuse this operator ke
 commit `.env`, or log real credentials. All `/api/v1/filters/**` and `/api/v1/jobs/preview` calls require
 `Authorization: Bearer <manual-key>`; health remains anonymously available without component details.
 See `docs/BACKEND_PROFILE.md` for architectural and operational decisions.
+
+## Scheduled synchronization
+
+Scheduling is fail-closed and disabled by default. It may be activated only after Notion manual/import
+validation succeeds and HiringCafe authorization or a supported automated feed is documented:
+
+```shell
+export NOTION_WRITES_ENABLED=true
+export JOB_SCHEDULER_ENABLED=true
+export HIRINGCAFE_SCHEDULED_AUTHORIZED=true
+export JOB_SCHEDULER_INTERVAL=PT6H
+export JOB_SCHEDULER_TIMEZONE=America/Sao_Paulo
+export JOB_SHUTDOWN_GRACE=PT30S
+```
+
+Every tick snapshots all saved filters. A PostgreSQL session advisory lock prevents the same filter
+from overlapping across instances, while the destination lock continues to serialize Notion writes.
+Overlapping/missed ticks are skipped rather than replayed. Shutdown immediately stops new manual,
+import, and scheduled admissions, then allows already-started work a bounded grace period. Keep
+`HIRINGCAFE_SCHEDULED_AUTHORIZED=false` until the provider gate is closed; enabling only the scheduler
+does not bypass it.
 
 The provisional saved-filter and preview contracts are documented in `docs/api/filter-api.md`; the verified provider contract and its pagination/automation limitations are in `docs/integrations/hiringcafe.md`. Ranking behavior is documented in `docs/ranking.md`, with provisional scoring decisions recorded in `docs/architecture/decisions.md`. Product approval of the gated ranking defaults remains required before ranking integration is exposed.
