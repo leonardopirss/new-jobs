@@ -8,6 +8,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -155,8 +156,30 @@ class SyncCoordinatorTests {
 		assertThat(gateway.events).doesNotContain("create:three-oh-one");
 	}
 
+	@Test
+	void marksRemainingItemsNotProcessedWhenDeadlineBudgetIsExhausted() {
+		MutableClock clock = new MutableClock(NOW);
+		gateway.afterFirstQuery = () -> clock.advance(Duration.ofSeconds(2));
+		coordinator = coordinator(gateway, clock);
+		UUID requestId = UUID.randomUUID();
+
+		var result = coordinator.synchronize(DESTINATION,
+			List.of(ranked("first", "first"), ranked("second", "second")),
+			new SyncExecutionPolicy(requestId, NOW.plusSeconds(2), Duration.ofSeconds(5), Duration.ofSeconds(1)));
+
+		assertThat(result.requestId()).isEqualTo(requestId);
+		assertThat(result.items()).extracting(item -> item.status())
+			.containsExactly(SyncItemStatus.NOT_PROCESSED, SyncItemStatus.NOT_PROCESSED);
+		assertThat(result.items()).extracting(item -> item.reasonCode())
+			.containsOnly("DEADLINE_BUDGET_EXHAUSTED");
+		assertThat(gateway.events).containsExactly("query:first");
+	}
+
 	private static SyncCoordinator coordinator(RecordingGateway gateway) {
-		Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
+		return coordinator(gateway, Clock.fixed(NOW, ZoneOffset.UTC));
+	}
+
+	private static SyncCoordinator coordinator(RecordingGateway gateway, Clock clock) {
 		JdbcSyncSafetyMarkerRepository markers = new JdbcSyncSafetyMarkerRepository(
 			JdbcClient.create(dataSource), new TransactionTemplate(new DataSourceTransactionManager(dataSource)));
 		JobIdentityCanonicalizer canonicalizer = new JobIdentityCanonicalizer();
@@ -214,12 +237,14 @@ class SyncCoordinatorTests {
 		private final Map<String, IdentityResult> identities = new LinkedHashMap<>();
 		private final List<String> events = new ArrayList<>();
 		private QuotaResult quotaResult = new QuotaResult.Complete(List.of());
+		private Runnable afterFirstQuery = () -> { };
 
 		@Override public SchemaResult retrieveSchema() { return new SchemaResult.Available(validSchema()); }
 
 		@Override
 		public IdentityResult queryByIdentity(JobSource source, String externalId, URI canonicalUrl) {
 			events.add("query:" + externalId);
+			if (events.stream().filter(event -> event.startsWith("query:")).count() == 1) afterFirstQuery.run();
 			return identities.getOrDefault(externalId, new IdentityResult.None());
 		}
 
@@ -245,5 +270,15 @@ class SyncCoordinatorTests {
 			events.add("update:" + pageId);
 			return new UpdateResult.Reconciled(page(pageId));
 		}
+	}
+
+	private static final class MutableClock extends Clock {
+		private Instant instant;
+
+		private MutableClock(Instant instant) { this.instant = instant; }
+		void advance(Duration duration) { instant = instant.plus(duration); }
+		@Override public ZoneId getZone() { return ZoneOffset.UTC; }
+		@Override public Clock withZone(ZoneId zone) { return this; }
+		@Override public Instant instant() { return instant; }
 	}
 }

@@ -7,7 +7,6 @@ import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonAnySetter;
 
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
@@ -16,12 +15,19 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public record ImportRequest(
-	@NotNull @Size(min = 1, max = MAX_ITEMS) List<@NotNull @Valid ImportedJob> jobs
+	@NotNull @Size(min = 1, max = MAX_ITEMS) List<ImportedJob> jobs
 ) {
 	public static final int MAX_ITEMS = 50;
 
 	public ImportRequest {
 		jobs = jobs == null ? null : List.copyOf(jobs);
+	}
+
+	public void validateBatch() {
+		if (jobs == null || jobs.isEmpty() || jobs.size() > MAX_ITEMS) {
+			throw ImportApiException.unprocessable("IMPORT_BATCH_SIZE_INVALID",
+				"Import batch must contain between 1 and 50 items");
+		}
 	}
 
 	@JsonAnySetter

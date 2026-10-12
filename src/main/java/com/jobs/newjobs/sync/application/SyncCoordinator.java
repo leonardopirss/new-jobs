@@ -69,16 +69,30 @@ public final class SyncCoordinator {
 	}
 
 	public SyncRunResult synchronize(String destinationId, List<RankedJob> rankedJobs) {
+		return synchronize(destinationId, rankedJobs,
+			new SyncExecutionPolicy(UUID.randomUUID(), null, LOCK_BUDGET, Duration.ZERO));
+	}
+
+	public SyncRunResult synchronize(String destinationId, List<RankedJob> rankedJobs, SyncExecutionPolicy policy) {
+		return synchronizeJobs(destinationId, rankedJobs.stream().map(RankedJob::job).toList(), policy);
+	}
+
+	public SyncRunResult synchronizeImported(String destinationId, List<NormalizedJob> jobs,
+		SyncExecutionPolicy policy) {
+		return synchronizeJobs(destinationId, jobs, policy);
+	}
+
+	private SyncRunResult synchronizeJobs(String destinationId, List<NormalizedJob> requestedJobs,
+		SyncExecutionPolicy policy) {
 		if (destinationId == null || destinationId.isBlank()) {
 			throw new SyncPreflightUnavailableException("DESTINATION_NOT_CONFIGURED",
 				"Notion destination is not configured");
 		}
-		List<RankedJob> jobs = List.copyOf(rankedJobs);
-		UUID requestId = UUID.randomUUID();
-		try (Lease lease = acquire(destinationId)) {
+		List<NormalizedJob> jobs = List.copyOf(requestedJobs);
+		try (Lease lease = acquire(destinationId, policy)) {
 			validateSchema(lease);
 			reconcileUnresolved(lease);
-			return execute(requestId, lease, jobs);
+			return execute(policy, lease, jobs);
 		}
 		catch (SyncPreflightUnavailableException exception) {
 			throw exception;
@@ -89,8 +103,9 @@ public final class SyncCoordinator {
 		}
 	}
 
-	private Lease acquire(String destinationId) {
-		return destinationLock.tryAcquire(destinationId, LOCK_BUDGET)
+	private Lease acquire(String destinationId, SyncExecutionPolicy policy) {
+		Duration budget = policy.effectiveLockBudget(clock.instant());
+		return destinationLock.tryAcquire(destinationId, budget)
 			.orElseThrow(() -> new SyncPreflightUnavailableException("DESTINATION_LOCK_BUSY",
 				"Notion destination is currently synchronized by another operation"));
 	}
@@ -119,39 +134,50 @@ public final class SyncCoordinator {
 		}
 	}
 
-	private SyncRunResult execute(UUID requestId, Lease lease, List<RankedJob> rankedJobs) {
-		SyncItemOutcome[] outcomes = new SyncItemOutcome[rankedJobs.size()];
-		CanonicalIdentity[] identities = new CanonicalIdentity[rankedJobs.size()];
-		NotionGateway.IdentityResult[] destinationMatches = new NotionGateway.IdentityResult[rankedJobs.size()];
+	private SyncRunResult execute(SyncExecutionPolicy policy, Lease lease, List<NormalizedJob> jobs) {
+		UUID requestId = policy.requestId();
+		SyncItemOutcome[] outcomes = new SyncItemOutcome[jobs.size()];
+		CanonicalIdentity[] identities = new CanonicalIdentity[jobs.size()];
+		NotionGateway.IdentityResult[] destinationMatches = new NotionGateway.IdentityResult[jobs.size()];
 
-		canonicalizeAndDeduplicate(rankedJobs, identities, outcomes);
-		for (int index = 0; index < rankedJobs.size(); index++) {
+		canonicalizeAndDeduplicate(jobs, identities, outcomes);
+		for (int index = 0; index < jobs.size(); index++) {
 			if (outcomes[index] != null) continue;
+			if (!policy.canStart(clock.instant())) {
+				outcomes[index] = outcome(index, jobs.get(index), SyncItemStatus.NOT_PROCESSED,
+					null, "DEADLINE_BUDGET_EXHAUSTED");
+				continue;
+			}
 			CanonicalIdentity identity = identities[index];
 			lease.assertHeld();
 			destinationMatches[index] = notion.queryByIdentity(
 				identity.source(), identity.externalJobId(), identity.canonicalUrl());
 			if (destinationMatches[index] instanceof NotionGateway.IdentityResult.Conflict) {
-				outcomes[index] = outcome(index, rankedJobs.get(index).job(), SyncItemStatus.CONFLICTED,
+				outcomes[index] = outcome(index, jobs.get(index), SyncItemStatus.CONFLICTED,
 					null, "IDENTITY_CONFLICT");
 			}
 			else if (destinationMatches[index] instanceof NotionGateway.IdentityResult.Incomplete) {
-				outcomes[index] = outcome(index, rankedJobs.get(index).job(), SyncItemStatus.NOT_PROCESSED,
+				outcomes[index] = outcome(index, jobs.get(index), SyncItemStatus.NOT_PROCESSED,
 					null, "IDENTITY_VISIBILITY_INCOMPLETE");
 			}
 		}
 
-		for (int index = 0; index < rankedJobs.size(); index++) {
+		for (int index = 0; index < jobs.size(); index++) {
 			if (outcomes[index] != null || !(destinationMatches[index] instanceof NotionGateway.IdentityResult.One one)) {
+				continue;
+			}
+			if (!policy.canStart(clock.instant())) {
+				outcomes[index] = outcome(index, jobs.get(index), SyncItemStatus.NOT_PROCESSED,
+					one.page().pageId(), "DEADLINE_BUDGET_EXHAUSTED");
 				continue;
 			}
 			try {
 				lease.assertHeld();
 			}
 			catch (DestinationLockLostException lost) {
-				return finishAfterLockLoss(requestId, rankedJobs, outcomes);
+				return finishAfterLockLoss(requestId, jobs, outcomes);
 			}
-			NormalizedJob job = rankedJobs.get(index).job();
+			NormalizedJob job = jobs.get(index);
 			NotionGateway.UpdateResult update = updateService.update(one.page().pageId(), job);
 			outcomes[index] = switch (update) {
 				case NotionGateway.UpdateResult.Reconciled reconciled ->
@@ -167,7 +193,7 @@ public final class SyncCoordinator {
 		}
 
 		boolean hasCreateCandidates = false;
-		for (int index = 0; index < rankedJobs.size(); index++) {
+		for (int index = 0; index < jobs.size(); index++) {
 			if (outcomes[index] == null && destinationMatches[index] instanceof NotionGateway.IdentityResult.None) {
 				hasCreateCandidates = true;
 				break;
@@ -182,17 +208,22 @@ public final class SyncCoordinator {
 			quota = quotaService.inspect(lease);
 		}
 		catch (DestinationLockLostException lost) {
-			return finishAfterLockLoss(requestId, rankedJobs, outcomes);
+			return finishAfterLockLoss(requestId, jobs, outcomes);
 		}
 		int remaining = quota instanceof QuotaAvailability.Available available ? available.remaining() : 0;
 		String unavailableReason = quota instanceof QuotaAvailability.Incomplete incomplete
 			? incomplete.reasonCode() : "CREATE_QUOTA_EXHAUSTED";
 
-		for (int index = 0; index < rankedJobs.size(); index++) {
+		for (int index = 0; index < jobs.size(); index++) {
 			if (outcomes[index] != null || !(destinationMatches[index] instanceof NotionGateway.IdentityResult.None)) {
 				continue;
 			}
-			NormalizedJob job = rankedJobs.get(index).job();
+			NormalizedJob job = jobs.get(index);
+			if (!policy.canStart(clock.instant())) {
+				outcomes[index] = outcome(index, job, SyncItemStatus.NOT_PROCESSED,
+					null, "DEADLINE_BUDGET_EXHAUSTED");
+				continue;
+			}
 			if (remaining == 0) {
 				outcomes[index] = outcome(index, job, SyncItemStatus.NOT_PROCESSED, null, unavailableReason);
 				continue;
@@ -212,21 +243,21 @@ public final class SyncCoordinator {
 		return SyncRunResult.from(requestId, Arrays.asList(outcomes));
 	}
 
-	private static SyncRunResult finishAfterLockLoss(UUID requestId, List<RankedJob> jobs,
+	private static SyncRunResult finishAfterLockLoss(UUID requestId, List<NormalizedJob> jobs,
 		SyncItemOutcome[] outcomes) {
 		for (int index = 0; index < outcomes.length; index++) {
 			if (outcomes[index] == null) {
-				outcomes[index] = outcome(index, jobs.get(index).job(), SyncItemStatus.NOT_PROCESSED,
+				outcomes[index] = outcome(index, jobs.get(index), SyncItemStatus.NOT_PROCESSED,
 					null, "DESTINATION_LOCK_LOST");
 			}
 		}
 		return SyncRunResult.from(requestId, Arrays.asList(outcomes));
 	}
 
-	private void canonicalizeAndDeduplicate(List<RankedJob> jobs, CanonicalIdentity[] identities,
+	private void canonicalizeAndDeduplicate(List<NormalizedJob> jobs, CanonicalIdentity[] identities,
 		SyncItemOutcome[] outcomes) {
 		for (int index = 0; index < jobs.size(); index++) {
-			NormalizedJob job = jobs.get(index).job();
+			NormalizedJob job = jobs.get(index);
 			try {
 				identities[index] = canonicalizer.canonicalize(job);
 			}
@@ -243,7 +274,7 @@ public final class SyncCoordinator {
 				}
 				else if (relationship == IdentityRelationship.CONFLICT) {
 					outcomes[index] = outcome(index, job, SyncItemStatus.CONFLICTED, null, "BATCH_IDENTITY_CONFLICT");
-					outcomes[prior] = outcome(prior, jobs.get(prior).job(), SyncItemStatus.CONFLICTED,
+					outcomes[prior] = outcome(prior, jobs.get(prior), SyncItemStatus.CONFLICTED,
 						null, "BATCH_IDENTITY_CONFLICT");
 				}
 			}
