@@ -17,3 +17,12 @@ management:
     web:
       exposure:
         include: health
+
+hiringcafe:
+  mcp-url: ${HIRINGCAFE_MCP_URL:https://hiringcafe.com/api/chatgpt/mcp}
+  connect-timeout: ${HIRINGCAFE_CONNECT_TIMEOUT:3s}
+  request-timeout: ${HIRINGCAFE_REQUEST_TIMEOUT:10s}
+  retry-backoff: ${HIRINGCAFE_RETRY_BACKOFF:200ms}
+  max-retry-delay: ${HIRINGCAFE_MAX_RETRY_DELAY:2s}
+  max-attempts: ${HIRINGCAFE_MAX_ATTEMPTS:3}
+  result-limit: ${HIRINGCAFE_RESULT_LIMIT:25}

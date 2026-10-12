@@ -12,7 +12,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -22,12 +26,15 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
 import com.jobs.newjobs.filters.application.SavedFilterRepository;
+import com.jobs.newjobs.hiringcafe.application.HiringCafeGateway;
+import com.jobs.newjobs.hiringcafe.application.HiringCafeProviderPage;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 @Testcontainers
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
+@Import(SavedFilterApiTests.ProviderStubConfiguration.class)
 class SavedFilterApiTests {
 	@Container
 	static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer(DockerImageName.parse("postgres:17.6-alpine"))
@@ -125,7 +132,19 @@ class SavedFilterApiTests {
 	}
 
 	@Test
-	void previewValidatesButNeverPersistsWithoutConnector() throws Exception {
+	void rejectsSavedFilterWithUndocumentedMultiValueProviderSemantics() throws Exception {
+		String ambiguous = validFilter("Ambiguous")
+			.replace("[\"Java\"]", "[\"Java\", \"PostgreSQL\"]");
+
+		HttpResponse<String> response = send("POST", "/api/v1/filters", ambiguous);
+
+		assertThat(response.statusCode()).isEqualTo(422);
+		assertThat(jsonMapper.readTree(response.body()).path("code").asString()).isEqualTo("UNSUPPORTED_FILTER");
+		assertThat(repository.count()).isZero();
+	}
+
+	@Test
+	void previewReturnsAccuratePartialSummaryAndNeverPersists() throws Exception {
 		String preview = """
 			{
 			  "source": "HIRING_CAFE",
@@ -141,10 +160,21 @@ class SavedFilterApiTests {
 		long before = repository.count();
 		HttpResponse<String> response = send("POST", "/api/v1/jobs/preview", preview);
 
-		assertThat(response.statusCode()).isEqualTo(501);
-		assertThat(jsonMapper.readTree(response.body()).path("code").asString())
-			.isEqualTo("PROVIDER_CONNECTOR_NOT_IMPLEMENTED");
+		assertThat(response.statusCode()).isEqualTo(200);
+		JsonNode responseBody = jsonMapper.readTree(response.body());
+		assertThat(responseBody.path("summary").path("complete").booleanValue()).isFalse();
+		assertThat(responseBody.path("summary").path("returned").intValue()).isZero();
+		assertThat(responseBody.path("warnings")).isNotEmpty();
 		assertThat(repository.count()).isEqualTo(before);
+	}
+
+	@TestConfiguration(proxyBeanMethods = false)
+	static class ProviderStubConfiguration {
+		@Bean
+		@Primary
+		HiringCafeGateway hiringCafeGatewayStub() {
+			return arguments -> new HiringCafeProviderPage(java.util.List.of(), 0, 0L);
+		}
 	}
 
 	private HttpResponse<String> send(String method, String path, String body) throws Exception {
@@ -167,7 +197,7 @@ class SavedFilterApiTests {
 			  "source": "HIRING_CAFE",
 			  "specification": {
 			    "commonFilters": [
-			      {"field": "TECHNOLOGY", "operation": "INCLUDE", "matchMode": "ALL", "values": ["Java", "PostgreSQL"]},
+			      {"field": "TECHNOLOGY", "operation": "INCLUDE", "matchMode": "ALL", "values": ["Java"]},
 			      {"field": "COMPANY", "operation": "EXCLUDE", "matchMode": "ANY", "values": ["Blocked Corp"]}
 			    ],
 			    "providerSpecificFilters": []

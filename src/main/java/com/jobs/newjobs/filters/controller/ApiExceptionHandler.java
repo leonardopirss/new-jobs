@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.jobs.newjobs.filters.application.FilterNotFoundException;
-import com.jobs.newjobs.filters.application.ProviderConnectorUnavailableException;
+import com.jobs.newjobs.hiringcafe.application.HiringCafeProviderException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
@@ -51,10 +51,10 @@ public class ApiExceptionHandler {
 			.body(problem(HttpStatus.CONFLICT, "FILTER_NAME_CONFLICT", "A saved filter with this name already exists"));
 	}
 
-	@ExceptionHandler(ProviderConnectorUnavailableException.class)
-	ResponseEntity<ProblemDetail> handleProviderUnavailable(ProviderConnectorUnavailableException exception) {
-		return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
-			.body(problem(HttpStatus.NOT_IMPLEMENTED, "PROVIDER_CONNECTOR_NOT_IMPLEMENTED", exception.getMessage()));
+	@ExceptionHandler(HiringCafeProviderException.class)
+	ResponseEntity<ProblemDetail> handleProviderUnavailable(HiringCafeProviderException exception) {
+		return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+			.body(problem(HttpStatus.BAD_GATEWAY, "HIRINGCAFE_UNAVAILABLE", "HiringCafe is temporarily unavailable"));
 	}
 
 	private static ProblemDetail problem(HttpStatus status, String code, String detail) {
