@@ -16,7 +16,6 @@ import com.jobs.newjobs.jobs.domain.NormalizedJob;
 import com.jobs.newjobs.notion.application.NotionGateway;
 import com.jobs.newjobs.notion.application.NotionPageMapper;
 import com.jobs.newjobs.notion.application.NotionSchemaValidator;
-import com.jobs.newjobs.notion.domain.NotionPagePatch;
 import com.jobs.newjobs.ranking.domain.RankedJob;
 import com.jobs.newjobs.sync.application.NotionCreationQuotaService.QuotaAvailability;
 import com.jobs.newjobs.sync.application.SyncMarkerProtocol.CreateOutcome;
@@ -39,6 +38,7 @@ public final class SyncCoordinator {
 	private final NotionSchemaValidator schemaValidator;
 	private final JobIdentityCanonicalizer canonicalizer;
 	private final NotionPageMapper pageMapper;
+	private final NotionUpdateService updateService;
 	private final SyncSafetyMarkerRepository markers;
 	private final SyncMarkerProtocol markerProtocol;
 	private final NotionCreationQuotaService quotaService;
@@ -50,6 +50,7 @@ public final class SyncCoordinator {
 		NotionSchemaValidator schemaValidator,
 		JobIdentityCanonicalizer canonicalizer,
 		NotionPageMapper pageMapper,
+		NotionUpdateService updateService,
 		SyncSafetyMarkerRepository markers,
 		SyncMarkerProtocol markerProtocol,
 		NotionCreationQuotaService quotaService,
@@ -60,6 +61,7 @@ public final class SyncCoordinator {
 		this.schemaValidator = schemaValidator;
 		this.canonicalizer = canonicalizer;
 		this.pageMapper = pageMapper;
+		this.updateService = updateService;
 		this.markers = markers;
 		this.markerProtocol = markerProtocol;
 		this.quotaService = quotaService;
@@ -150,11 +152,13 @@ public final class SyncCoordinator {
 				return finishAfterLockLoss(requestId, rankedJobs, outcomes);
 			}
 			NormalizedJob job = rankedJobs.get(index).job();
-			NotionPagePatch patch = pageMapper.updatePatch(job, clock.instant());
-			NotionGateway.UpdateResult update = notion.updatePage(one.page().pageId(), patch);
+			NotionGateway.UpdateResult update = updateService.update(one.page().pageId(), job);
 			outcomes[index] = switch (update) {
 				case NotionGateway.UpdateResult.Reconciled reconciled ->
 					outcome(index, job, SyncItemStatus.UPDATED, reconciled.snapshot().pageId(), null);
+				case NotionGateway.UpdateResult.ConclusiveNotApplied notApplied ->
+					outcome(index, job, SyncItemStatus.NOT_PROCESSED,
+						notApplied.snapshot().pageId(), "UPDATE_NOT_APPLIED");
 				case NotionGateway.UpdateResult.ReliablyNotSent ignored ->
 					outcome(index, job, SyncItemStatus.NOT_PROCESSED, one.page().pageId(), "UPDATE_NOT_SENT");
 				case NotionGateway.UpdateResult.Ambiguous ignored ->

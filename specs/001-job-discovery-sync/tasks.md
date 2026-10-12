@@ -116,11 +116,11 @@ description: "Dependency-ordered implementation tasks for phases 4–8, grouped 
 
 **Independent Test**: Modify status, notes, applied date, and an extra property; resync changed source data and verify byte-for-byte preservation with no archive/unarchive/delete/recreate.
 
-- [ ] T031 [P] [US4] Add sentinel integration tests for `Status`, `User Notes`, `Applied At`, extra properties, immutable operation/first-sync markers, null/blank non-erasure, and absence-without-signal behavior in `src/test/java/com/jobs/newjobs/notion/UserPropertyOwnershipTests.java`
-- [ ] T032 [US4] Harden update reconciliation so `Last Synced At` is atomic with the owned patch and ambiguous updates are reread before retry in `src/main/java/com/jobs/newjobs/sync/application/NotionUpdateService.java`
-- [ ] T033 [P] [US4] Add contract tests for current Notion Views API capability and non-destructive fallback behavior in `src/test/java/com/jobs/newjobs/notion/infrastructure/NotionViewProvisionerTests.java`
-- [ ] T034 [US4] Implement optional idempotent supported view provisioning without making synchronization depend on view success in `src/main/java/com/jobs/newjobs/notion/application/NotionViewProvisioner.java`
-- [ ] T035 [US4] Document the ten logical views and exact manual fallback setup when capability/permission is unavailable in `docs/integrations/notion-views.md`; run the User Story 4 preservation suite
+- [X] T031 [P] [US4] Add sentinel integration tests for `Status`, `User Notes`, `Applied At`, extra properties, immutable operation/first-sync markers, null/blank non-erasure, and absence-without-signal behavior in `src/test/java/com/jobs/newjobs/notion/UserPropertyOwnershipTests.java`
+- [X] T032 [US4] Harden update reconciliation so `Last Synced At` is atomic with the owned patch and ambiguous updates are reread before retry in `src/main/java/com/jobs/newjobs/sync/application/NotionUpdateService.java`
+- [X] T033 [P] [US4] Add contract tests for current Notion Views API capability and non-destructive fallback behavior in `src/test/java/com/jobs/newjobs/notion/infrastructure/NotionViewProvisionerTests.java`
+- [X] T034 [US4] Implement optional idempotent supported view provisioning without making synchronization depend on view success in `src/main/java/com/jobs/newjobs/notion/application/NotionViewProvisioner.java`
+- [X] T035 [US4] Document the ten logical views and exact manual fallback setup when capability/permission is unavailable in `docs/integrations/notion-views.md`; run the User Story 4 preservation suite
 
 **Checkpoint**: User tracking state is preserved and views never compromise data synchronization.
 

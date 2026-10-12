@@ -264,7 +264,8 @@ public final class HttpNotionGateway implements NotionGateway {
 			NotionPageSnapshot snapshot = parsePage(parse(read.response().body()));
 			boolean matches = patch.properties().entrySet().stream()
 				.allMatch(entry -> entry.getValue().equals(snapshot.properties().get(entry.getKey())));
-			return matches ? new UpdateResult.Reconciled(snapshot) : new UpdateResult.Ambiguous(ambiguousFailure);
+			return matches ? new UpdateResult.Reconciled(snapshot)
+				: new UpdateResult.ConclusiveNotApplied(snapshot, ambiguousFailure);
 		}
 		catch (RuntimeException exception) {
 			return new UpdateResult.Ambiguous(ambiguousFailure);
