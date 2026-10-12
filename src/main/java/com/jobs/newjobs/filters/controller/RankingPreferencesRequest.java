@@ -15,13 +15,13 @@ public record RankingPreferencesRequest(
 	@NotNull @Size(max = 50) List<@NotBlank @Size(max = 80) String> desiredTechnologies,
 	@NotNull @Size(max = 20) List<@NotBlank @Size(max = 80) String> acceptedSeniorities
 ) {
-	RankingPreferences toDomain() {
+	public RankingPreferences toDomain() {
 		return new RankingPreferences(
 			searchMode, requiredTechnologies, desiredTechnologies, acceptedSeniorities
 		);
 	}
 
-	static RankingPreferences effective(RankingPreferencesRequest request) {
+	public static RankingPreferences effective(RankingPreferencesRequest request) {
 		return request == null ? RankingPreferences.compatibilityProfile() : request.toDomain();
 	}
 }
