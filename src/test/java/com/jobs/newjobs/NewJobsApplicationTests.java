@@ -52,8 +52,8 @@ class NewJobsApplicationTests {
 	void applicationBootsWithPostgresAndAppliesAllMigrations() {
 		assertThat(jdbcTemplate.queryForObject("select 1", Integer.class)).isEqualTo(1);
 		assertThat(flyway.info().current()).isNotNull();
-		assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("4");
-		assertThat(flyway.info().applied()).hasSize(4);
+		assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("5");
+		assertThat(flyway.info().applied()).hasSize(5);
 	}
 
 	@Test

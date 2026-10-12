@@ -34,6 +34,11 @@ public final class ManualBearerAuthenticationFilter extends OncePerRequestFilter
 	}
 
 	@Override
+	protected boolean shouldNotFilter(HttpServletRequest request) {
+		return "/api/v1/jobs/import".equals(request.getRequestURI());
+	}
+
+	@Override
 	protected void doFilterInternal(
 		HttpServletRequest request,
 		HttpServletResponse response,
